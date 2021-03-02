@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.14)
 project(sawyer CXX)
 
+set(CMAKE_CXX_STANDARD 17)
+
 file(GLOB_RECURSE SAWYER_SOURCES "src/*.cpp")
 file(GLOB_RECURSE SAWYER_HEADERS "src/*.h" "src/*.hpp")
 

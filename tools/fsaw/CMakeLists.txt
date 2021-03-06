@@ -15,3 +15,4 @@ include_directories("../../out/include")
 link_directories("../../out/lib")
 
 add_executable(fsaw ${SAWYER_SOURCES})
+target_link_libraries(fsaw libsawyer.a)

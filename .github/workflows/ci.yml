@@ -1,0 +1,20 @@
+name: CI
+on: [push, pull_request]
+jobs:
+  ubuntu:
+    name: Ubuntu
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v1
+      - name: Build libsawyer
+        run: |
+          cmake -B bin
+          cmake --build bin
+          cmake --install bin --prefix out
+
+      - name: Build fsaw
+        run: |
+          cd tools/fsaw
+          cmake -B bin
+          cmake --build bin

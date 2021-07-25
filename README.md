@@ -5,7 +5,13 @@ Common code shared between [OpenRCT2](https://github.com/OpenRCT2/OpenRCT2) and 
 ```
 cmake -G Ninja -B bin
 cmake --build bin
-cmake --install bin --prefix out
+cmake --install bin
+```
+
+## Build and run tests
+```
+cmake --build bin --target tests
+bin/tests
 ```
 
 ## Build fsaw

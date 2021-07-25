@@ -5,13 +5,28 @@ jobs:
     name: Ubuntu
     runs-on: ubuntu-latest
     steps:
+      - name: Prepare environment
+        run: |
+          sudo apt-get install libgtest-dev
+          cd /usr/src/gtest
+          sudo cmake CMakeLists.txt
+          sudo make
+          sudo cp *.a /usr/lib
+          sudo ln -s /usr/lib/libgtest.a /usr/local/lib/libgtest.a
+          sudo ln -s /usr/lib/libgtest_main.a /usr/local/lib/libgtest_main.a
+
       - name: Checkout
         uses: actions/checkout@v1
       - name: Build libsawyer
         run: |
           cmake -B bin
           cmake --build bin
-          cmake --install bin --prefix out
+          cmake --install bin
+
+      - name: Test libsawyer
+        run: |
+          cmake --build bin --target tests
+          bin/tests
 
       - name: Build fsaw
         run: |

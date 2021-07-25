@@ -39,8 +39,8 @@ namespace cs
         uint8_t success = _BitScanReverse(&i, source);
         return success != 0 ? i : -1;
 #elif defined(__GNUC__)
-        int32_t success = __builtin_ffs(__builtin_bswap32(source));
-        return success - 1;
+        int32_t success = __builtin_clz(source) ^ 31;
+        return success;
 #else
 #pragma message "Falling back to iterative bitscan reverse, consider using intrinsics"
         for (int32_t i = 31; i > -1; i--)

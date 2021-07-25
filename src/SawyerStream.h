@@ -51,7 +51,8 @@ namespace cs
     class SawyerStreamReader
     {
     private:
-        std::ifstream _stream;
+        std::istream* _stream;
+        std::fstream _fstream;
         FastBuffer _decodeBuffer;
         FastBuffer _decodeBuffer2;
 
@@ -61,6 +62,7 @@ namespace cs
         static void decodeRotate(FastBuffer& buffer, stdx::span<uint8_t const> data);
 
     public:
+        SawyerStreamReader(std::istream& stream);
         SawyerStreamReader(const fs::path& path);
 
         stdx::span<uint8_t const> readChunk();
@@ -73,17 +75,20 @@ namespace cs
     class SawyerStreamWriter
     {
     private:
-        std::ofstream _stream;
+        std::ostream* _stream;
+        std::ofstream _fstream;
         uint32_t _checksum{};
         FastBuffer _encodeBuffer;
         FastBuffer _encodeBuffer2;
 
+        void writeStream(const void* data, size_t dataLen);
         stdx::span<uint8_t const> encode(SawyerEncoding encoding, stdx::span<uint8_t const> data);
         static void encodeRunLengthSingle(FastBuffer& buffer, stdx::span<uint8_t const> data);
         static void encodeRunLengthMulti(FastBuffer& buffer, stdx::span<uint8_t const> data);
         static void encodeRotate(FastBuffer& buffer, stdx::span<uint8_t const> data);
 
     public:
+        SawyerStreamWriter(std::ostream& stream);
         SawyerStreamWriter(const fs::path& path);
 
         void writeChunk(SawyerEncoding chunkType, const void* data, size_t dataLen);

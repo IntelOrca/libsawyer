@@ -1,7 +1,34 @@
 #include <cstring>
 #include <gtest/gtest.h>
-#include <sawyer/FileSystem.hpp>
 #include <sawyer/SawyerStream.h>
+
+template<typename CharT, typename TraitsT = std::char_traits<CharT>>
+class SpanStream : public std::istream
+{
+private:
+    class SpanStreamBuffer : public std::streambuf
+    {
+    public:
+        SpanStreamBuffer(stdx::span<CharT>& span)
+        {
+            this->setg((char*)span.data(), (char*)span.data(), (char*)(span.data() + span.size()));
+        }
+    };
+
+    std::unique_ptr<SpanStreamBuffer> _buffer;
+
+    SpanStream(std::unique_ptr<SpanStreamBuffer>&& buffer)
+        : std::istream(buffer.get())
+    {
+        _buffer = std::move(buffer);
+    }
+
+public:
+    SpanStream(stdx::span<CharT> data)
+        : SpanStream(std::make_unique<SpanStreamBuffer>(data))
+    {
+    }
+};
 
 class SawyerStreamTests : public testing::Test
 {
@@ -20,53 +47,23 @@ protected:
     static const uint8_t invalid7[6];
     static const uint8_t empty[1];
 
-    void TearDown() override
-    {
-        std::error_code err;
-        fs::remove(getTempFile(), err);
-    }
-
-    fs::path getTempFile()
-    {
-        return fs::temp_directory_path() / "sawyerstream.dat";
-    }
-
-    std::vector<uint8_t> readFile()
-    {
-        std::ifstream fs(getTempFile());
-        fs.seekg(0, std::ios::end);
-        auto len = fs.tellg();
-        fs.seekg(0, std::ios::beg);
-
-        std::vector<uint8_t> result;
-        result.resize(len);
-        fs.read(reinterpret_cast<char*>(result.data()), result.size());
-
-        return result;
-    }
-
-    void writeFile(stdx::span<uint8_t const> data)
-    {
-        std::ofstream fs(getTempFile());
-        fs.write(reinterpret_cast<const char*>(data.data()), data.size());
-    }
-
     void assertEncodeDecode(cs::SawyerEncoding encodingType, stdx::span<uint8_t const> inputData)
     {
-        cs::SawyerStreamWriter writer(getTempFile());
+        std::stringstream stream;
+        cs::SawyerStreamWriter writer(stream);
         writer.writeChunk(encodingType, inputData.data(), inputData.size());
         writer.writeChecksum();
         writer.close();
 
-        auto encodedData = readFile();
+        auto final = stream.str();
+        auto encodedData = stdx::span(reinterpret_cast<const uint8_t*>(final.data()), final.size());
         assertDecode(encodedData, inputData);
     }
 
     void assertDecode(stdx::span<uint8_t const> encodedData, stdx::span<uint8_t const> expectedData)
     {
-        writeFile(encodedData);
-
-        cs::SawyerStreamReader reader(getTempFile());
+        SpanStream stream(encodedData);
+        cs::SawyerStreamReader reader(stream);
         auto decodedData = reader.readChunk();
 
         // Check data lengh is correct
@@ -79,9 +76,8 @@ protected:
 
     void assertDecodeException(stdx::span<uint8_t const> data)
     {
-        writeFile(data);
-
-        cs::SawyerStreamReader reader(getTempFile());
+        SpanStream stream(data);
+        cs::SawyerStreamReader reader(stream);
         EXPECT_THROW(reader.readChunk(), std::runtime_error);
     }
 };

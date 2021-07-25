@@ -7,19 +7,13 @@ jobs:
     steps:
       - name: Prepare environment
         run: |
-          sudo apt-get install libgtest-dev
-          cd /usr/src/gtest
-          sudo cmake CMakeLists.txt
-          sudo make
-          sudo cp *.a /usr/lib
-          sudo ln -s /usr/lib/libgtest.a /usr/local/lib/libgtest.a
-          sudo ln -s /usr/lib/libgtest_main.a /usr/local/lib/libgtest_main.a
+          sudo apt-get install libgtest-dev ninja-build
 
       - name: Checkout
         uses: actions/checkout@v1
       - name: Build libsawyer
         run: |
-          cmake -B bin
+          cmake -G Ninja -B bin -DCMAKE_BUILD_TYPE=Release
           cmake --build bin
           cmake --install bin
 

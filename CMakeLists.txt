@@ -48,6 +48,6 @@ if (ENABLE_TESTS)
     
     add_executable(tests EXCLUDE_FROM_ALL ${SAWYER_TEST_SOURCES})
     add_dependencies(tests install)
-    target_link_libraries(tests ${GTEST_LIBRARIES} sawyer ${LDL} z)
+    target_link_libraries(tests ${GTEST_LIBRARIES} sawyer pthread)
     add_test(NAME libsawyer COMMAND tests)
 endif ()

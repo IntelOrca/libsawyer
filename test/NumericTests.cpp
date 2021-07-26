@@ -3,6 +3,7 @@
 
 TEST(NumericTests, bitScanForward)
 {
+    ASSERT_EQ(cs::bitScanForward(0), -1);
     ASSERT_EQ(cs::bitScanForward(0b0001), 0);
     ASSERT_EQ(cs::bitScanForward(0b0010), 1);
     ASSERT_EQ(cs::bitScanForward(0b1100), 2);
@@ -12,6 +13,7 @@ TEST(NumericTests, bitScanForward)
 
 TEST(NumericTests, bitScanReverse)
 {
+    ASSERT_EQ(cs::bitScanReverse(0), -1);
     ASSERT_EQ(cs::bitScanReverse(0b00100000000000000000000000000100), 29);
     ASSERT_EQ(cs::bitScanReverse(0b01000000000000000000000000001000), 30);
     ASSERT_EQ(cs::bitScanReverse(0b10000000000000000000000000000100), 31);

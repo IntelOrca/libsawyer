@@ -24,10 +24,16 @@ namespace cs
         return success - 1;
 #else
 #pragma message "Falling back to iterative bitscan forward, consider using intrinsics"
-        for (int32_t i = 0; i < 32; i++)
-            if (source & (1u << i))
-                return i;
-
+        if (success != 0)
+        {
+            for (int32_t i = 0; i < 32; i++)
+            {
+                if (source & (1u << i))
+                {
+                    return i;
+                }
+            }
+        }
         return -1;
 #endif
     }
@@ -39,14 +45,20 @@ namespace cs
         uint8_t success = _BitScanReverse(&i, source);
         return success != 0 ? i : -1;
 #elif defined(__GNUC__)
-        int32_t success = __builtin_clz(source) ^ 31;
+        int32_t success = source == 0 ? -1 : __builtin_clz(source) ^ 31;
         return success;
 #else
 #pragma message "Falling back to iterative bitscan reverse, consider using intrinsics"
-        for (int32_t i = 31; i > -1; i--)
-            if (source & (1u << i))
-                return i;
-
+        if (success != 0)
+        {
+            for (int32_t i = 31; i > -1; i--)
+            {
+                if (source & (1u << i))
+                {
+                    return i;
+                }
+            }
+        }
         return -1;
 #endif
     }

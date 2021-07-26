@@ -7,7 +7,7 @@ jobs:
     steps:
       - name: Prepare environment
         run: |
-          sudo apt-get install libgtest-dev ninja-build
+          sudo apt-get install libgtest-dev ninja-build python2 python-yaml
 
       - name: Checkout
         uses: actions/checkout@v1

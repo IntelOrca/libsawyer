@@ -20,11 +20,11 @@ namespace cs
         uint8_t success = _BitScanForward(&i, source);
         return success != 0 ? i : -1;
 #elif defined(__GNUC__)
-        int32_t success = __builtin_ffs(source);
-        return success - 1;
+        auto result = __builtin_ffs(source);
+        return result - 1;
 #else
 #pragma message "Falling back to iterative bitscan forward, consider using intrinsics"
-        if (success != 0)
+        if (source != 0)
         {
             for (int32_t i = 0; i < 32; i++)
             {
@@ -45,11 +45,11 @@ namespace cs
         uint8_t success = _BitScanReverse(&i, source);
         return success != 0 ? i : -1;
 #elif defined(__GNUC__)
-        int32_t success = source == 0 ? -1 : __builtin_clz(source) ^ 31;
-        return success;
+        auto result = source == 0 ? -1 : __builtin_clz(source) ^ 31;
+        return result;
 #else
 #pragma message "Falling back to iterative bitscan reverse, consider using intrinsics"
-        if (success != 0)
+        if (source != 0)
         {
             for (int32_t i = 31; i > -1; i--)
             {

@@ -30,10 +30,12 @@ if (ENABLE_DISCORD_RPC)
         LOG_BUILD ON)
     ExternalProject_Get_Property(discord-rpc SOURCE_DIR)
     ExternalProject_Get_Property(discord-rpc BINARY_DIR)
-    install(DIRECTORY "${SOURCE_DIR}/include/" DESTINATION "include" FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp")
     set(DISCORD_RPC_LIB "${BINARY_DIR}/src/libdiscord-rpc.a")
 
     add_dependencies(sawyer discord-rpc)
+
+    target_include_directories(sawyer PRIVATE "${SOURCE_DIR}/include")
+    target_compile_definitions(sawyer PRIVATE CS_ENABLE_DISCORD_RPC)
 endif ()
 
 # Scripting

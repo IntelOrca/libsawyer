@@ -45,9 +45,9 @@ if (ENABLE_TESTS)
     link_directories("${CMAKE_INSTALL_PREFIX}/lib")
 
     file(GLOB_RECURSE SAWYER_TEST_SOURCES "test/*.cpp")
-    
+
     add_executable(tests EXCLUDE_FROM_ALL ${SAWYER_TEST_SOURCES})
     add_dependencies(tests install)
     target_link_libraries(tests ${GTEST_LIBRARIES} sawyer pthread)
-    add_test(NAME libsawyer COMMAND tests)
+    gtest_discover_tests(tests)
 endif ()

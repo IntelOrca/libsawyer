@@ -57,6 +57,7 @@ if (ENABLE_SCRIPTING)
     ExternalProject_Get_Property(duktape SOURCE_DIR)
     set(DUKTAPE_SOURCES "${SOURCE_DIR}/duktape-src/duktape.c")
 
+    add_compile_definitions(sawyer PRIVATE CS_ENABLE_SCRIPTING)
     target_sources(sawyer PRIVATE ${DUKTAPE_SOURCES})
     add_dependencies(sawyer duktape)
     install(FILES "${SOURCE_DIR}/duktape-src/duk_config.h" DESTINATION "include")
@@ -100,13 +101,10 @@ if (ENABLE_TESTS)
     find_package(GTest REQUIRED)
     set(GTEST_LIBRARIES ${GTEST_BOTH_LIBRARIES})
 
-    include_directories(SYSTEM ${GTEST_INCLUDE_DIRS})
-    include_directories("${CMAKE_INSTALL_PREFIX}/include")
-    link_directories("${CMAKE_INSTALL_PREFIX}/debug/lib")
-
     file(GLOB_RECURSE SAWYER_TEST_SOURCES "test/*.cpp")
-
     add_executable(tests EXCLUDE_FROM_ALL ${SAWYER_TEST_SOURCES})
+    target_include_directories(tests SYSTEM PRIVATE ${GTEST_INCLUDE_DIRS})
+    target_include_directories(tests PRIVATE "${CMAKE_INSTALL_PREFIX}/include")
     add_dependencies(tests install)
     target_link_libraries(tests ${GTEST_LIBRARIES} sawyer pthread)
     gtest_discover_tests(tests)

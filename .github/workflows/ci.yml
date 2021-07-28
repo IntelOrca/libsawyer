@@ -25,5 +25,33 @@ jobs:
       - name: Build fsaw
         run: |
           cd tools/fsaw
-          cmake -B bin
+          cmake -G Ninja -B bin
+          cmake --build bin
+  windows:
+    name: Windows
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v1
+      - name: Build libsawyer
+        shell: cmd
+        run: |
+          call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=amd64
+          cmake -G Ninja -B bin -DCMAKE_BUILD_TYPE=Release -DENABLE_SCRIPTING=off -DCMAKE_TOOLCHAIN_FILE=%VCPKG_INSTALLATION_ROOT%\scripts\buildsystems\vcpkg.cmake
+          cmake --build bin
+          cmake --install bin
+
+      - name: Test libsawyer
+        shell: cmd
+        run: |
+          call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=amd64
+          cmake --build bin --target tests
+          bin\tests
+
+      - name: Build fsaw
+        shell: cmd
+        run: |
+          call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=amd64
+          cd tools/fsaw
+          cmake -G Ninja -B bin -DCMAKE_BUILD_TYPE=Release
           cmake --build bin

@@ -1,5 +1,6 @@
 #include <cstdio>
 #include <sawyer/SawyerStream.h>
+#include <string>
 #include <vector>
 
 using namespace cs;

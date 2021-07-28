@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD 17)
 file(GLOB_RECURSE SAWYER_SOURCES "src/*.cpp")
 
 if (MSVC)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc /utf-8 /WX")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc /std:c++17 /utf-8 /WX")
 else ()
 
 endif ()
@@ -15,4 +15,4 @@ include_directories("../../out/include")
 link_directories("../../out/lib")
 
 add_executable(fsaw ${SAWYER_SOURCES})
-target_link_libraries(fsaw libsawyer.a)
+target_link_libraries(fsaw sawyer)

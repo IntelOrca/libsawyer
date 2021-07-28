@@ -23,14 +23,18 @@ if (ENABLE_DISCORD_RPC)
         URL https://github.com/discord/discord-rpc/archive/963aa9f3e5ce81a4682c6ca3d136cddda614db33.zip
         URL_HASH SHA1=10081a9a4e68459884185a25ff0d22ab6cd5a184
         TIMEOUT 10
-        CMAKE_ARGS "-DBUILD_EXAMPLES=off"
+        CMAKE_ARGS "-DBUILD_EXAMPLES=off" "-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}"
         INSTALL_COMMAND ""
         LOG_DOWNLOAD ON
         LOG_CONFIGURE ON
         LOG_BUILD ON)
     ExternalProject_Get_Property(discord-rpc SOURCE_DIR)
     ExternalProject_Get_Property(discord-rpc BINARY_DIR)
-    set(DISCORD_RPC_LIB "${BINARY_DIR}/src/libdiscord-rpc.a")
+    if (MSVC)
+        set(DISCORD_RPC_LIB "${BINARY_DIR}/src/discord-rpc.lib")
+    else ()
+        set(DISCORD_RPC_LIB "${BINARY_DIR}/src/libdiscord-rpc.a")
+    endif ()
 
     add_dependencies(sawyer discord-rpc)
 
@@ -71,13 +75,23 @@ else ()
 endif ()
 
 if (ENABLE_DISCORD_RPC)
-    # Merge libdiscord-rpc.a into libsawyer.a
-    set(LIBSAWYER_PATH "${CMAKE_BINARY_DIR}/libsawyer.a")
-    set(LIBSAWYER_MAIN_PATH "${CMAKE_BINARY_DIR}/temp/libsawyer.a")
-    add_custom_command(TARGET sawyer POST_BUILD
-        COMMAND mkdir -p temp && mv ${LIBSAWYER_PATH} ${LIBSAWYER_MAIN_PATH}
-        COMMAND ${CMAKE_AR} rcT ${LIBSAWYER_PATH} ${LIBSAWYER_MAIN_PATH} ${DISCORD_RPC_LIB}
-        COMMENT "Merging multiple static libraries")
+    if (MSVC)
+        # Merge discord-rpc.lib into sawyer.lib
+        set(LIBSAWYER_PATH "${CMAKE_BINARY_DIR}/sawyer.lib")
+        set(LIBSAWYER_MAIN_PATH "${CMAKE_BINARY_DIR}/temp/sawyer.lib")
+        add_custom_command(TARGET sawyer POST_BUILD
+            COMMAND md temp && mv ${LIBSAWYER_PATH} ${LIBSAWYER_MAIN_PATH}
+            COMMAND lib "/out:${LIBSAWYER_PATH}" ${LIBSAWYER_MAIN_PATH} ${DISCORD_RPC_LIB}
+            COMMENT "Merging multiple static libraries")
+    else ()
+        # Merge libdiscord-rpc.a into libsawyer.a
+        set(LIBSAWYER_PATH "${CMAKE_BINARY_DIR}/libsawyer.a")
+        set(LIBSAWYER_MAIN_PATH "${CMAKE_BINARY_DIR}/temp/libsawyer.a")
+        add_custom_command(TARGET sawyer POST_BUILD
+            COMMAND mkdir -p temp && mv ${LIBSAWYER_PATH} ${LIBSAWYER_MAIN_PATH}
+            COMMAND ${CMAKE_AR} rcT ${LIBSAWYER_PATH} ${LIBSAWYER_MAIN_PATH} ${DISCORD_RPC_LIB}
+            COMMENT "Merging multiple static libraries")
+    endif ()
 endif ()
 
 # set_target_properties(sawyer PROPERTIES PUBLIC_HEADER "src/SawyerStream.h;src\\thirdparty/span.hpp")
@@ -106,6 +120,10 @@ if (ENABLE_TESTS)
     target_include_directories(tests SYSTEM PRIVATE ${GTEST_INCLUDE_DIRS})
     target_include_directories(tests PRIVATE "${CMAKE_INSTALL_PREFIX}/include")
     add_dependencies(tests install)
-    target_link_libraries(tests ${GTEST_LIBRARIES} sawyer pthread)
+
+    set(THREADS_PREFER_PTHREAD_FLAG ON)
+    find_package(Threads REQUIRED)
+
+    target_link_libraries(tests ${GTEST_LIBRARIES} sawyer Threads::Threads)
     gtest_discover_tests(tests)
 endif ()

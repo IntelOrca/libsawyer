@@ -179,7 +179,7 @@ namespace cs
     std::string toUtf8(std::wstring_view src)
     {
 #ifdef _WIN32
-        int srcLen = src.size();
+        auto srcLen = static_cast<int>(src.size());
         int sizeReq = WideCharToMultiByte(CP_UTF8, 0, src.data(), srcLen, nullptr, 0, nullptr, nullptr);
         auto result = std::string(sizeReq, 0);
         WideCharToMultiByte(CP_UTF8, 0, src.data(), srcLen, result.data(), sizeReq, nullptr, nullptr);
@@ -193,10 +193,10 @@ namespace cs
     std::wstring toUtf16(std::string_view src)
     {
 #ifdef _WIN32
-        int srcLen = src.size();
-        int sizeReq = MultiByteToWideChar(CP_ACP, 0, src.data(), srcLen, nullptr, 0);
+        auto srcLen = static_cast<int>(src.size());
+        int sizeReq = MultiByteToWideChar(CP_UTF8, 0, src.data(), srcLen, nullptr, 0);
         auto result = std::wstring(sizeReq, 0);
-        MultiByteToWideChar(CP_ACP, 0, src.data(), srcLen, result.data(), sizeReq);
+        MultiByteToWideChar(CP_UTF8, 0, src.data(), srcLen, result.data(), sizeReq);
         return result;
 #else
         std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>, wchar_t> converter;

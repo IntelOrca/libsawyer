@@ -33,11 +33,20 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v1
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '2.x'
+      - name: Test python
+        shell: cmd
+        run: |
+          cd /D ${{ env.pythonLocation }}
+          mklink python2.exe python.exe
+          pip install PyYAML
       - name: Build libsawyer
         shell: cmd
         run: |
           call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=amd64
-          cmake -G Ninja -B bin -DCMAKE_BUILD_TYPE=Release -DENABLE_SCRIPTING=off -DCMAKE_TOOLCHAIN_FILE=%VCPKG_INSTALLATION_ROOT%\scripts\buildsystems\vcpkg.cmake
+          cmake -G Ninja -B bin -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=%VCPKG_INSTALLATION_ROOT%\scripts\buildsystems\vcpkg.cmake
           cmake --build bin
           cmake --install bin
 

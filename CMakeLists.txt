@@ -3,7 +3,28 @@ cmake_minimum_required(VERSION 3.14)
 # Do not allow building in root
 if (CMAKE_BINARY_DIR STREQUAL CMAKE_SOURCE_DIR)
     message(FATAL_ERROR "Do not build in the root. Create a bin directory and remove ${CMAKE_SOURCE_DIR}/CMakeCache.txt")
-endif()
+endif ()
+
+function (merge_static_libraries target source)
+    set(TARGET_PATH $<TARGET_FILE:${target}>)
+    if (MSVC)
+        set(TEMP_PATH "tmplib")
+        add_custom_command(TARGET ${target} POST_BUILD
+            COMMAND mv ${TARGET_PATH} ${TEMP_PATH}
+            COMMAND lib "/out:${TARGET_PATH}" ${TEMP_PATH} ${source}
+            COMMAND rm ${TEMP_PATH}
+            COMMENT "Relinking ${target} with ${source}")
+    else ()
+        set(TEMP_PATH "tmpobj")
+        add_custom_command(TARGET ${target} POST_BUILD
+            COMMAND mkdir -p ${TEMP_PATH}
+            COMMAND ${CMAKE_AR} x ${TARGET_PATH} --output ${TEMP_PATH}
+            COMMAND ${CMAKE_AR} x ${source} --output ${TEMP_PATH}
+            COMMAND ${CMAKE_AR} qc ${TARGET_PATH} "${TEMP_PATH}/*.o"
+            COMMAND rm -rf ${TEMP_PATH}
+            COMMENT "Relinking ${target} with ${source}")
+    endif ()
+endfunction ()
 
 # Options
 option(ENABLE_DISCORD_RPC   "Embed discord-rpc into the library." ON)
@@ -45,6 +66,7 @@ if (ENABLE_DISCORD_RPC)
 
     target_include_directories(sawyer PRIVATE "${SOURCE_DIR}/include")
     target_compile_definitions(sawyer PRIVATE CS_ENABLE_DISCORD_RPC)
+    merge_static_libraries(sawyer ${DISCORD_RPC_LIB})
 endif ()
 
 # Scripting
@@ -84,26 +106,6 @@ if (MSVC)
     add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
 else ()
 
-endif ()
-
-if (ENABLE_DISCORD_RPC)
-    if (MSVC)
-        # Merge discord-rpc.lib into sawyer.lib
-        set(LIBSAWYER_PATH "${CMAKE_BINARY_DIR}/sawyer.lib")
-        set(LIBSAWYER_MAIN_PATH "${CMAKE_BINARY_DIR}/temp/sawyer.lib")
-        add_custom_command(TARGET sawyer POST_BUILD
-            COMMAND md temp && mv ${LIBSAWYER_PATH} ${LIBSAWYER_MAIN_PATH}
-            COMMAND lib "/out:${LIBSAWYER_PATH}" ${LIBSAWYER_MAIN_PATH} ${DISCORD_RPC_LIB}
-            COMMENT "Merging multiple static libraries")
-    else ()
-        # Merge libdiscord-rpc.a into libsawyer.a
-        set(LIBSAWYER_PATH "${CMAKE_BINARY_DIR}/libsawyer.a")
-        set(LIBSAWYER_MAIN_PATH "${CMAKE_BINARY_DIR}/temp/libsawyer.a")
-        add_custom_command(TARGET sawyer POST_BUILD
-            COMMAND mkdir -p temp && mv ${LIBSAWYER_PATH} ${LIBSAWYER_MAIN_PATH}
-            COMMAND ${CMAKE_AR} rcT ${LIBSAWYER_PATH} ${LIBSAWYER_MAIN_PATH} ${DISCORD_RPC_LIB}
-            COMMENT "Merging multiple static libraries")
-    endif ()
 endif ()
 
 # set_target_properties(sawyer PROPERTIES PUBLIC_HEADER "src/SawyerStream.h;src\\thirdparty/span.hpp")

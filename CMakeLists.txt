@@ -6,7 +6,7 @@ option(ENABLE_SCRIPTING     "Embed duktape and dukglue into the library." ON)
 option(ENABLE_TESTS         "Build the unit tests for the library." ON)
 
 # Library
-project(sawyer C CXX)
+project(sawyer CXX)
 enable_testing()
 
 set(CMAKE_CXX_STANDARD 17)
@@ -44,6 +44,11 @@ endif ()
 
 # Scripting
 if (ENABLE_SCRIPTING)
+    set(DUKTAPE_DEFINES "-DDUK_USE_CPP_EXCEPTIONS")
+    if (MSVC)
+        set(DUKTAPE_DEFINES "${DUKTAPE_DEFINES} -DDUK_USE_DATE_NOW_WINDOWS")
+    endif ()
+
     include(ExternalProject)
     ExternalProject_Add(
         duktape
@@ -52,7 +57,7 @@ if (ENABLE_SCRIPTING)
         TIMEOUT 10
         BUILD_BYPRODUCTS "duktape-prefix/src/duktape/duktape-src/duktape.c"
         BUILD_IN_SOURCE ON
-        CONFIGURE_COMMAND python2 tools/configure.py --output-directory duktape-src -UDUK_USE_DATE_NOW_WINDOWS -UDUK_USE_CPP_EXCEPTIONS
+        CONFIGURE_COMMAND python2 tools/configure.py --output-directory duktape-src ${DUKTAPE_DEFINES}
         BUILD_COMMAND ""
         INSTALL_COMMAND ""
         LOG_DOWNLOAD ON
@@ -60,6 +65,7 @@ if (ENABLE_SCRIPTING)
 
     ExternalProject_Get_Property(duktape SOURCE_DIR)
     set(DUKTAPE_SOURCES "${SOURCE_DIR}/duktape-src/duktape.c")
+    set_source_files_properties(${DUKTAPE_SOURCES} PROPERTIES LANGUAGE CXX)
 
     add_compile_definitions(sawyer PRIVATE CS_ENABLE_SCRIPTING)
     target_sources(sawyer PRIVATE ${DUKTAPE_SOURCES})

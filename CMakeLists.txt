@@ -1,5 +1,10 @@
 cmake_minimum_required(VERSION 3.14)
 
+# Do not allow building in root
+if (CMAKE_BINARY_DIR STREQUAL CMAKE_SOURCE_DIR)
+    message(FATAL_ERROR "Do not build in the root. Create a bin directory and remove ${CMAKE_SOURCE_DIR}/CMakeCache.txt")
+endif()
+
 # Options
 option(ENABLE_DISCORD_RPC   "Embed discord-rpc into the library." ON)
 option(ENABLE_SCRIPTING     "Embed duktape and dukglue into the library." ON)
@@ -113,9 +118,12 @@ if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
   set(CMAKE_INSTALL_PREFIX "${CMAKE_CURRENT_LIST_DIR}/out" CACHE PATH "..." FORCE)
 endif()
 
+# Expose include directory for library consumers
+target_include_directories(sawyer INTERFACE $<INSTALL_INTERFACE:include>)
+
 install(DIRECTORY "src/" DESTINATION "include/sawyer" FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp")
 install(TARGETS sawyer EXPORT sawyerConfig LIBRARY ARCHIVE DESTINATION ${TARGETS_PREFIX})
-install(EXPORT sawyerConfig DESTINATION share)
+install(EXPORT sawyerConfig NAMESPACE sawyer:: DESTINATION share)
 
 ## Testing
 if (ENABLE_TESTS)

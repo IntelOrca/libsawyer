@@ -9,8 +9,14 @@
 #error Expected C++ exceptions to be supported
 #endif
 
+#ifndef DUK_USE_EXEC_TIMEOUT_CHECK
+#error Expected exec timeout to be supported
+#endif
+
 static constexpr const char* CUSTOM_ERROR_MESSAGE = "A custom error occured.";
 static constexpr const char* CUSTOM_EXCEPTION_MESSAGE = "A custom exception occured.";
+
+static bool _shouldTimeout;
 
 static duk_ret_t throwError(duk_context* ctx)
 {
@@ -22,7 +28,21 @@ static duk_ret_t thowException(duk_context* ctx)
     throw std::runtime_error(CUSTOM_EXCEPTION_MESSAGE);
 }
 
-TEST(ScriptingTests, testBasic)
+duk_bool_t duk_exec_timeout_check(void*)
+{
+    return _shouldTimeout;
+}
+
+class ScriptingTests : public testing::Test
+{
+protected:
+    void SetUp() override
+    {
+        _shouldTimeout = false;
+    }
+};
+
+TEST_F(ScriptingTests, testBasic)
 {
     auto ctx = duk_create_heap_default();
     duk_eval_string(ctx, "1 + 4");
@@ -31,7 +51,7 @@ TEST(ScriptingTests, testBasic)
     duk_destroy_heap(ctx);
 }
 
-TEST(ScriptingTests, testErrorHandling)
+TEST_F(ScriptingTests, testErrorHandling)
 {
     auto ctx = duk_create_heap_default();
     duk_push_c_function(ctx, throwError, 0);
@@ -55,6 +75,14 @@ TEST(ScriptingTests, testErrorHandling)
     ASSERT_THROW(duk_eval_string(ctx, "throw new Error('user exception')"), std::runtime_error);
     ASSERT_THROW(duk_eval_string(ctx, "{}.test"), std::runtime_error);
 
+    duk_destroy_heap(ctx);
+}
+
+TEST_F(ScriptingTests, testTimeout)
+{
+    auto ctx = duk_create_heap_default();
+    _shouldTimeout = true;
+    ASSERT_THROW(duk_eval_string(ctx, "while (true) { }"), std::runtime_error);
     duk_destroy_heap(ctx);
 }
 

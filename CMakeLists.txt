@@ -44,9 +44,9 @@ endif ()
 
 # Scripting
 if (ENABLE_SCRIPTING)
-    set(DUKTAPE_DEFINES "-DDUK_USE_CPP_EXCEPTIONS")
+    set(DUKTAPE_DEFINES "-DDUK_USE_CPP_EXCEPTIONS" "-DDUK_USE_INTERRUPT_COUNTER" "-DDUK_USE_EXEC_TIMEOUT_CHECK=duk_exec_timeout_check" "--fixup-line=extern duk_bool_t duk_exec_timeout_check(void*)\\\\\\\\\\\;")
     if (MSVC)
-        set(DUKTAPE_DEFINES "${DUKTAPE_DEFINES} -DDUK_USE_DATE_NOW_WINDOWS")
+        set(DUKTAPE_DEFINES ${DUKTAPE_DEFINES} "-DDUK_USE_DATE_NOW_WINDOWS")
     endif ()
 
     include(ExternalProject)

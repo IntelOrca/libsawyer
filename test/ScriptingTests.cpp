@@ -1,8 +1,9 @@
 #ifdef CS_ENABLE_SCRIPTING
 
+#include <cmath>
 #include <cstdio>
-#include <duktape.h>
 #include <gtest/gtest.h>
+#include <sawyer/Scripting.h>
 #include <stdexcept>
 
 #ifndef DUK_USE_CPP_EXCEPTIONS
@@ -83,6 +84,40 @@ TEST_F(ScriptingTests, testTimeout)
     auto ctx = duk_create_heap_default();
     _shouldTimeout = true;
     ASSERT_THROW(duk_eval_string(ctx, "while (true) { }"), std::runtime_error);
+    duk_destroy_heap(ctx);
+}
+
+static double mag(const DukValue& a, const DukValue& b)
+{
+    auto ctx = a.context();
+    try
+    {
+        auto aNumber = a.as_double();
+        auto bNumber = b.as_double();
+        auto cNumber = std::sqrt((aNumber * aNumber) + (bNumber * bNumber));
+        return cNumber;
+    }
+    catch (const DukException&)
+    {
+        return duk_error(ctx, DUK_ERR_ERROR, "mag expects two numbers as arguments");
+    }
+}
+
+TEST_F(ScriptingTests, dukGlue)
+{
+    auto ctx = duk_create_heap_default();
+    dukglue_register_function(ctx, mag, "mag");
+
+    // Valid call
+    duk_eval_string(ctx, "mag(3, 4)");
+    ASSERT_EQ(duk_get_type(ctx, -1), DUK_TYPE_NUMBER);
+    ASSERT_EQ(duk_get_number(ctx, -1), 5);
+
+    // Invalid call
+    duk_eval_string(ctx, "try { mag(); } catch (err) { 999; }");
+    ASSERT_EQ(duk_get_type(ctx, -1), DUK_TYPE_NUMBER);
+    ASSERT_EQ(duk_get_number(ctx, -1), 999);
+
     duk_destroy_heap(ctx);
 }
 

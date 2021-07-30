@@ -76,6 +76,7 @@ endif ()
 
 if (MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc /std:c++17 /utf-8 /WX")
+    add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
 else ()
 
 endif ()
@@ -124,7 +125,7 @@ if (ENABLE_TESTS)
     file(GLOB_RECURSE SAWYER_TEST_SOURCES "test/*.cpp")
     add_executable(tests EXCLUDE_FROM_ALL ${SAWYER_TEST_SOURCES})
     target_include_directories(tests SYSTEM PRIVATE ${GTEST_INCLUDE_DIRS})
-    target_include_directories(tests PRIVATE "${CMAKE_INSTALL_PREFIX}/include")
+    target_include_directories(tests SYSTEM PRIVATE "${CMAKE_INSTALL_PREFIX}/include")
     add_dependencies(tests install)
 
     set(THREADS_PREFER_PTHREAD_FLAG ON)

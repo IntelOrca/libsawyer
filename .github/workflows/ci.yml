@@ -4,10 +4,14 @@ jobs:
   ubuntu:
     name: Ubuntu
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [x64]
     steps:
       - name: Prepare environment
         run: |
-          sudo apt-get install libgtest-dev ninja-build
+          sudo apt-get install libgtest-dev ninja-build python2 python-yaml
 
       - name: Checkout
         uses: actions/checkout@v1
@@ -16,6 +20,8 @@ jobs:
           cmake -G Ninja -B bin -DCMAKE_BUILD_TYPE=Release
           cmake --build bin
           cmake --install bin
+          cd out
+          zip -r ../libsawyer-linux-${{ matrix.platform }}.zip *
 
       - name: Test libsawyer
         run: |
@@ -25,5 +31,65 @@ jobs:
       - name: Build fsaw
         run: |
           cd tools/fsaw
-          cmake -B bin
+          cmake -G Ninja -B bin
           cmake --build bin
+
+      - name: Upload zip as artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: libsawyer-linux-${{ matrix.platform }}.zip
+          path: libsawyer-linux-${{ matrix.platform }}.zip
+
+  windows:
+    name: Windows
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - platform: x86
+          arch: x86
+        - platform: x64
+          arch: amd64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v1
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '2.x'
+      - name: Setup python pre-reqs
+        shell: cmd
+        run: |
+          cd /D ${{ env.pythonLocation }}
+          mklink python2.exe python.exe
+          pip install PyYAML
+      - name: Build libsawyer
+        shell: cmd
+        run: |
+          call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=${{ matrix.arch }}
+          cmake -G Ninja -B bin -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=%VCPKG_INSTALLATION_ROOT%\scripts\buildsystems\vcpkg.cmake
+          cmake --build bin
+          cmake --install bin
+          cd out
+          7z a -tzip -mx9 -mtc=off ..\libsawyer-${{ matrix.platform }}.zip *
+
+      - name: Test libsawyer
+        shell: cmd
+        run: |
+          call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=${{ matrix.arch }}
+          cmake --build bin --target tests
+          bin\tests
+
+      - name: Build fsaw
+        shell: cmd
+        run: |
+          call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=${{ matrix.arch }}
+          cd tools/fsaw
+          cmake -G Ninja -B bin -DCMAKE_BUILD_TYPE=Release
+          cmake --build bin
+
+      - name: Upload zip as artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: libsawyer-${{ matrix.platform }}.zip
+          path: libsawyer-${{ matrix.platform }}.zip

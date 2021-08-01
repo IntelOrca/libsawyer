@@ -2,6 +2,7 @@
     "name": "libsawyer",
     "version-string": "0.1.0",
     "dependencies": [
+        "breakpad",
         "gtest"
     ]
 }

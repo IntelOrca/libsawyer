@@ -10,6 +10,7 @@
                 "_DEBUG",
                 "UNICODE",
                 "_UNICODE",
+                "CS_ENABLE_BREAKPAD",
                 "CS_ENABLE_DISCORD_RPC",
                 "CS_ENABLE_SCRIPTING"
             ],

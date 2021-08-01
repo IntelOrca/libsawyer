@@ -27,6 +27,7 @@ function (merge_static_libraries target source)
 endfunction ()
 
 # Options
+option(ENABLE_BREAKPAD      "Embed breakpad into the library." ON)
 option(ENABLE_DISCORD_RPC   "Embed discord-rpc into the library." ON)
 option(ENABLE_SCRIPTING     "Embed duktape and dukglue into the library." ON)
 option(ENABLE_TESTS         "Build the unit tests for the library." ON)
@@ -40,6 +41,32 @@ set(CMAKE_CXX_STANDARD 17)
 file(GLOB_RECURSE SAWYER_SOURCES "src/*.cpp")
 file(GLOB_RECURSE SAWYER_HEADERS "src/*.h" "src/*.hpp")
 add_library(sawyer STATIC ${SAWYER_SOURCES})
+
+# Breakpad
+if (ENABLE_BREAKPAD AND MSVC)
+    target_compile_definitions(sawyer PRIVATE CS_ENABLE_BREAKPAD)
+
+    find_package(unofficial-breakpad CONFIG REQUIRED)
+
+    # Add breakpad include directories
+    get_target_property(BREAKPAD_INCLUDE_DIRS unofficial::breakpad::libbreakpad INTERFACE_INCLUDE_DIRECTORIES)
+    target_include_directories(sawyer PRIVATE ${BREAKPAD_INCLUDE_DIRS})
+
+    # Get other .lib files breakpad depends on
+    get_target_property(BREAKPAD_LIBS_A unofficial::breakpad::libbreakpad INTERFACE_LINK_LIBRARIES)
+    get_target_property(BREAKPAD_LIBS_B unofficial::breakpad::libbreakpad_client INTERFACE_LINK_LIBRARIES)
+
+    # Merge all breakpad .lib into sawyer.lib
+    merge_static_libraries(sawyer ${BREAKPAD_LIBS_A})
+
+    # Complains about wininet.lib
+    # merge_static_libraries(sawyer ${BREAKPAD_LIBS_B})
+
+    merge_static_libraries(sawyer $<TARGET_FILE:unofficial::breakpad::libbreakpad>)
+    merge_static_libraries(sawyer $<TARGET_FILE:unofficial::breakpad::libbreakpad_client>)
+else ()
+    set(ENABLE_BREAKPAD OFF)
+endif ()
 
 # Discord RPC
 if (ENABLE_DISCORD_RPC)
@@ -132,7 +159,10 @@ if (ENABLE_TESTS)
     find_package(GTest REQUIRED)
     set(GTEST_LIBRARIES ${GTEST_BOTH_LIBRARIES})
 
+    set(SAWYER_TEST_CRASH_HANDLER_SOURCES "test/CrashHandlerTest.cpp")
+
     file(GLOB_RECURSE SAWYER_TEST_SOURCES "test/*.cpp")
+    list(FILTER SAWYER_TEST_SOURCES EXCLUDE REGEX ${SAWYER_TEST_CRASH_HANDLER_SOURCES})
     add_executable(tests EXCLUDE_FROM_ALL ${SAWYER_TEST_SOURCES})
     target_include_directories(tests SYSTEM PRIVATE ${GTEST_INCLUDE_DIRS})
     target_include_directories(tests SYSTEM PRIVATE "${CMAKE_INSTALL_PREFIX}/include")
@@ -143,4 +173,12 @@ if (ENABLE_TESTS)
 
     target_link_libraries(tests ${GTEST_LIBRARIES} sawyer Threads::Threads)
     gtest_discover_tests(tests)
+
+    if (ENABLE_BREAKPAD)
+        add_executable(test_crash EXCLUDE_FROM_ALL ${SAWYER_TEST_CRASH_HANDLER_SOURCES})
+        target_include_directories(test_crash SYSTEM PRIVATE "${CMAKE_INSTALL_PREFIX}/include")
+        target_link_libraries(test_crash sawyer)
+        add_dependencies(test_crash install)
+        add_test(NAME test_crash COMMAND $<TARGET_FILE:test_crash>)
+    endif ()
 endif ()

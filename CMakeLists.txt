@@ -44,9 +44,26 @@ add_library(sawyer STATIC ${SAWYER_SOURCES})
 
 # Breakpad
 if (ENABLE_BREAKPAD AND MSVC)
-    find_package(unofficial-breakpad CONFIG REQUIRED)
-    target_link_libraries(sawyer PRIVATE unofficial::breakpad::libbreakpad unofficial::breakpad::libbreakpad_client)
     target_compile_definitions(sawyer PRIVATE CS_ENABLE_BREAKPAD)
+
+    find_package(unofficial-breakpad CONFIG REQUIRED)
+
+    # Add breakpad include directories
+    get_target_property(BREAKPAD_INCLUDE_DIRS unofficial::breakpad::libbreakpad INTERFACE_INCLUDE_DIRECTORIES)
+    target_include_directories(sawyer PRIVATE ${BREAKPAD_INCLUDE_DIRS})
+
+    # Get other .lib files breakpad depends on
+    get_target_property(BREAKPAD_LIBS_A unofficial::breakpad::libbreakpad INTERFACE_LINK_LIBRARIES)
+    get_target_property(BREAKPAD_LIBS_B unofficial::breakpad::libbreakpad_client INTERFACE_LINK_LIBRARIES)
+
+    # Merge all breakpad .lib into sawyer.lib
+    merge_static_libraries(sawyer ${BREAKPAD_LIBS_A})
+
+    # Complains about wininet.lib
+    # merge_static_libraries(sawyer ${BREAKPAD_LIBS_B})
+
+    merge_static_libraries(sawyer $<TARGET_FILE:unofficial::breakpad::libbreakpad>)
+    merge_static_libraries(sawyer $<TARGET_FILE:unofficial::breakpad::libbreakpad_client>)
 else ()
     set(ENABLE_BREAKPAD OFF)
 endif ()

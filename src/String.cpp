@@ -47,7 +47,7 @@ namespace cs
         return false;
     }
 
-    inline bool endsWith(std::string_view s, std::string_view value, bool ignoreCase)
+    bool endsWith(std::string_view s, std::string_view value, bool ignoreCase)
     {
         if (s.size() >= value.size())
         {
@@ -57,7 +57,7 @@ namespace cs
         return false;
     }
 
-    size_t strlcpy(char* dest, const char* src, size_t size)
+    size_t strcpy(char* dest, const char* src, size_t size)
     {
         size_t src_len = std::strlen(src);
 
@@ -74,7 +74,7 @@ namespace cs
         return src_len;
     }
 
-    size_t strlcat(char* dest, const char* src, size_t size)
+    size_t strcat(char* dest, const char* src, size_t size)
     {
         size_t src_len = std::strlen(src);
 

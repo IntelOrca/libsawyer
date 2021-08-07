@@ -1,3 +1,5 @@
+#pragma once
+
 #include <cstdint>
 #include <cstdio>
 #include <string>
@@ -24,9 +26,9 @@ namespace cs
     size_t strcpy(char* dest, const char* src, size_t size);
 
     template<size_t N>
-    size_t strcpy(char (&dest)[N], const char* src)
+    inline size_t strcpy(char (&dest)[N], const char* src)
     {
-        return strlcpy(dest, src, N);
+        return strcpy(dest, src, N);
     }
 
     /**
@@ -36,13 +38,13 @@ namespace cs
     size_t strcat(char* dest, const char* src, size_t size);
 
     template<size_t N>
-    size_t strcat(char (&dest)[N], const char* src)
+    inline size_t strcat(char (&dest)[N], const char* src)
     {
         return strcat(dest, src, N);
     }
 
     template<size_t N, typename... Args>
-    int sprintf(char (&dest)[N], const char* fmt, Args&&... args)
+    inline int sprintf(char (&dest)[N], const char* fmt, Args&&... args)
     {
         return std::snprintf(dest, N, fmt, std::forward<Args>(args)...);
     }

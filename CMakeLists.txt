@@ -32,6 +32,8 @@ option(ENABLE_DISCORD_RPC   "Embed discord-rpc into the library." ON)
 option(ENABLE_SCRIPTING     "Embed duktape and dukglue into the library." ON)
 option(ENABLE_TESTS         "Build the unit tests for the library." ON)
 
+option(CONFIGURE_OWN_DUKTAPE    "Build the unit tests for the library." OFF)
+
 # Library
 project(sawyer CXX)
 enable_testing()
@@ -98,34 +100,41 @@ endif ()
 
 # Scripting
 if (ENABLE_SCRIPTING)
-    set(DUKTAPE_DEFINES "-DDUK_USE_CPP_EXCEPTIONS" "-DDUK_USE_INTERRUPT_COUNTER" "-DDUK_USE_EXEC_TIMEOUT_CHECK=duk_exec_timeout_check" "--fixup-line=extern duk_bool_t duk_exec_timeout_check(void*)\\\\\\\\\\\;")
-    if (MSVC)
-        set(DUKTAPE_DEFINES ${DUKTAPE_DEFINES} "-DDUK_USE_DATE_NOW_WINDOWS")
+    if (CONFIGURE_OWN_DUKTAPE)
+        set(DUKTAPE_DEFINES "-DDUK_USE_CPP_EXCEPTIONS" "-DDUK_USE_INTERRUPT_COUNTER" "-DDUK_USE_EXEC_TIMEOUT_CHECK=duk_exec_timeout_check" "--fixup-line=extern duk_bool_t duk_exec_timeout_check(void*)\\\\\\\\\\\;")
+        if (MSVC)
+            set(DUKTAPE_DEFINES ${DUKTAPE_DEFINES} "-DDUK_USE_DATE_NOW_WINDOWS")
+        endif ()
+
+        include(ExternalProject)
+        ExternalProject_Add(
+            duktape
+            URL https://github.com/svaarala/duktape/releases/download/v2.6.0/duktape-2.6.0.tar.xz
+            URL_HASH SHA1=5936bf5e9943128b53a9e534e0a6842532b52bb5
+            TIMEOUT 10
+            BUILD_BYPRODUCTS "duktape-prefix/src/duktape/duktape-src/duktape.c"
+            BUILD_IN_SOURCE ON
+            CONFIGURE_COMMAND python2 tools/configure.py --output-directory duktape-src ${DUKTAPE_DEFINES}
+            BUILD_COMMAND ""
+            INSTALL_COMMAND ""
+            LOG_DOWNLOAD ON
+            LOG_CONFIGURE ON)
+
+        ExternalProject_Get_Property(duktape SOURCE_DIR)
+        set(DUKTAPE_SOURCE_DIR "${SOURCE_DIR}/duktape-src")
+
+        add_dependencies(sawyer duktape)
+    else ()
+        set(DUKTAPE_SOURCE_DIR "src/thirdparty/duktape")
     endif ()
 
-    include(ExternalProject)
-    ExternalProject_Add(
-        duktape
-        URL https://github.com/svaarala/duktape/releases/download/v2.6.0/duktape-2.6.0.tar.xz
-        URL_HASH SHA1=5936bf5e9943128b53a9e534e0a6842532b52bb5
-        TIMEOUT 10
-        BUILD_BYPRODUCTS "duktape-prefix/src/duktape/duktape-src/duktape.c"
-        BUILD_IN_SOURCE ON
-        CONFIGURE_COMMAND python2 tools/configure.py --output-directory duktape-src ${DUKTAPE_DEFINES}
-        BUILD_COMMAND ""
-        INSTALL_COMMAND ""
-        LOG_DOWNLOAD ON
-        LOG_CONFIGURE ON)
-
-    ExternalProject_Get_Property(duktape SOURCE_DIR)
-    set(DUKTAPE_SOURCES "${SOURCE_DIR}/duktape-src/duktape.c")
-    set_source_files_properties(${DUKTAPE_SOURCES} PROPERTIES LANGUAGE CXX)
+    set(DUKTAPE_SOURCE "${DUKTAPE_SOURCE_DIR}/duktape.c")
+    set_source_files_properties(${DUKTAPE_SOURCE} PROPERTIES LANGUAGE CXX)
 
     add_compile_definitions(sawyer PRIVATE CS_ENABLE_SCRIPTING)
-    target_sources(sawyer PRIVATE ${DUKTAPE_SOURCES})
-    add_dependencies(sawyer duktape)
-    install(FILES "${SOURCE_DIR}/duktape-src/duk_config.h" DESTINATION "include")
-    install(FILES "${SOURCE_DIR}/duktape-src/duktape.h" DESTINATION "include")
+    target_sources(sawyer PRIVATE ${DUKTAPE_SOURCE})
+    install(FILES "${DUKTAPE_SOURCE_DIR}/duk_config.h" DESTINATION "include")
+    install(FILES "${DUKTAPE_SOURCE_DIR}/duktape.h" DESTINATION "include")
 endif ()
 
 if (MSVC)

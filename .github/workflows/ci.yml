@@ -11,7 +11,8 @@ jobs:
     steps:
       - name: Prepare environment
         run: |
-          sudo apt-get install libgtest-dev ninja-build python2 python-yaml
+          sudo apt-get install libgtest-dev ninja-build
+#         sudo apt-get install python2 python-yaml
 
       - name: Checkout
         uses: actions/checkout@v1
@@ -54,15 +55,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v1
-      - uses: actions/setup-python@v2
-        with:
-          python-version: '2.x'
-      - name: Setup python pre-reqs
-        shell: cmd
-        run: |
-          cd /D ${{ env.pythonLocation }}
-          mklink python2.exe python.exe
-          pip install PyYAML
+#     - uses: actions/setup-python@v2
+#       with:
+#         python-version: '2.x'
+#     - name: Setup python pre-reqs
+#       shell: cmd
+#       run: |
+#         cd /D ${{ env.pythonLocation }}
+#         mklink python2.exe python.exe
+#         pip install PyYAML
       - name: Build libsawyer
         shell: cmd
         run: |

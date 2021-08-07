@@ -1,8 +1,10 @@
 #ifdef CS_ENABLE_SCRIPTING
 
+#include "TestData.h"
 #include <cmath>
 #include <cstdio>
 #include <gtest/gtest.h>
+#include <queue>
 #include <sawyer/Scripting.h>
 #include <stdexcept>
 
@@ -117,6 +119,54 @@ TEST_F(ScriptingTests, dukGlue)
     duk_eval_string(ctx, "try { mag(); } catch (err) { 999; }");
     ASSERT_EQ(duk_get_type(ctx, -1), DUK_TYPE_NUMBER);
     ASSERT_EQ(duk_get_number(ctx, -1), 999);
+
+    duk_destroy_heap(ctx);
+}
+
+static std::string _result;
+static std::queue<DukValue> _timeoutQueue;
+
+static void finish(const char* result)
+{
+    _result = result == nullptr ? "" : std::string(result);
+}
+
+static int32_t setTimeout(const DukValue& cb, const DukValue& delay)
+{
+    _timeoutQueue.push(cb);
+    return 0;
+}
+
+static void runTimeoutQueue()
+{
+    while (!_timeoutQueue.empty())
+    {
+        auto& dukValue = _timeoutQueue.front();
+        if (dukValue.is_function())
+        {
+            auto ctx = dukValue.context();
+            dukValue.push();
+            duk_pcall(ctx, 0);
+            duk_pop(ctx);
+        }
+        _timeoutQueue.pop();
+    }
+}
+
+TEST_F(ScriptingTests, asyncAwait)
+{
+    auto ctx = duk_create_heap_default();
+
+    dukglue_register_function(ctx, setTimeout, "setTimeout");
+    dukglue_register_function(ctx, finish, "finish");
+
+    cs::scripting::addPolyfillPromise(ctx);
+
+    auto code = readTestData("asyncTest.js");
+    duk_eval_string_noresult(ctx, code.c_str());
+    runTimeoutQueue();
+
+    ASSERT_STREQ(_result.c_str(), "test");
 
     duk_destroy_heap(ctx);
 }

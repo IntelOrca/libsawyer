@@ -132,6 +132,7 @@ if (ENABLE_SCRIPTING)
     set_source_files_properties(${DUKTAPE_SOURCE} PROPERTIES LANGUAGE CXX)
 
     add_compile_definitions(sawyer PRIVATE CS_ENABLE_SCRIPTING)
+    target_include_directories(sawyer PRIVATE ${DUKTAPE_SOURCE_DIR})
     target_sources(sawyer PRIVATE ${DUKTAPE_SOURCE})
     install(FILES "${DUKTAPE_SOURCE_DIR}/duk_config.h" DESTINATION "include")
     install(FILES "${DUKTAPE_SOURCE_DIR}/duktape.h" DESTINATION "include")

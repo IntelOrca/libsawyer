@@ -2,6 +2,7 @@
 
 #include "FileSystem.hpp"
 #include "Span.hpp"
+#include "Stream.h"
 #include <cstdint>
 #include <fstream>
 
@@ -18,7 +19,7 @@ namespace cs
     /**
      * Provides a more efficient implementation than std::vector for allocating and
      * pushing bytes to a buffer.
-     * 
+     *
      * In particular, for Windows, HeapAlloc is used for a direct memory block from the OS
      * which is not initialised (even in debug builds). It vastly reduces the time needed
      * to load / save S5 files in debug builds.
@@ -51,8 +52,8 @@ namespace cs
     class SawyerStreamReader
     {
     private:
-        std::istream* _stream;
-        std::fstream _fstream;
+        Stream* _stream;
+        std::unique_ptr<FileStream> _fstream;
         FastBuffer _decodeBuffer;
         FastBuffer _decodeBuffer2;
 
@@ -62,7 +63,7 @@ namespace cs
         static void decodeRotate(FastBuffer& buffer, stdx::span<uint8_t const> data);
 
     public:
-        SawyerStreamReader(std::istream& stream);
+        SawyerStreamReader(Stream& stream);
         SawyerStreamReader(const fs::path& path);
 
         stdx::span<uint8_t const> readChunk();
@@ -75,8 +76,8 @@ namespace cs
     class SawyerStreamWriter
     {
     private:
-        std::ostream* _stream;
-        std::ofstream _fstream;
+        Stream* _stream;
+        std::unique_ptr<FileStream> _fstream;
         uint32_t _checksum{};
         FastBuffer _encodeBuffer;
         FastBuffer _encodeBuffer2;
@@ -88,7 +89,7 @@ namespace cs
         static void encodeRotate(FastBuffer& buffer, stdx::span<uint8_t const> data);
 
     public:
-        SawyerStreamWriter(std::ostream& stream);
+        SawyerStreamWriter(Stream& stream);
         SawyerStreamWriter(const fs::path& path);
 
         void writeChunk(SawyerEncoding chunkType, const void* data, size_t dataLen);

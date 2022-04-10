@@ -29,6 +29,7 @@ endfunction ()
 # Options
 option(ENABLE_BREAKPAD      "Embed breakpad into the library." ON)
 option(ENABLE_DISCORD_RPC   "Embed discord-rpc into the library." ON)
+option(ENABLE_LIBPNG        "Embed libpng into the library." ON)
 option(ENABLE_SCRIPTING     "Embed duktape and dukglue into the library." ON)
 option(ENABLE_TESTS         "Build the unit tests for the library." ON)
 
@@ -96,6 +97,11 @@ if (ENABLE_DISCORD_RPC)
     target_include_directories(sawyer PRIVATE "${SOURCE_DIR}/include")
     target_compile_definitions(sawyer PRIVATE CS_ENABLE_DISCORD_RPC)
     merge_static_libraries(sawyer ${DISCORD_RPC_LIB})
+endif ()
+
+if (ENABLE_LIBPNG)
+    find_package(libpng CONFIG REQUIRED)
+    target_link_libraries(sawyer PRIVATE png)
 endif ()
 
 # Scripting

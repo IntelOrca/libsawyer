@@ -1,11 +1,15 @@
 #include <cstdio>
 #include <optional>
+#include <sawyer/Image.h>
+#include <sawyer/Palette.h>
 #include <sawyer/SawyerStream.h>
 #include <sawyer/Stream.h>
 #include <string>
 #include <string_view>
 
 using namespace cs;
+
+const Palette& GetStandardPalette();
 
 namespace cs
 {

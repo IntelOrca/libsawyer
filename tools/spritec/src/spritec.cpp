@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <optional>
 #include <sawyer/SawyerStream.h>
 #include <sawyer/Stream.h>
 #include <string>
@@ -8,6 +9,84 @@ using namespace cs;
 
 namespace cs
 {
+    class BinaryReader final
+    {
+    private:
+        Stream* _stream{};
+
+    public:
+        BinaryReader(Stream& stream)
+            : _stream(&stream)
+        {
+        }
+
+        template<typename T>
+        T read()
+        {
+            T buffer;
+            _stream->read(&buffer, sizeof(T));
+            return buffer;
+        }
+
+        template<typename T>
+        std::optional<T> tryRead()
+        {
+            auto remainingLen = _stream->getLength() - _stream->getPosition();
+            if (remainingLen >= sizeof(T))
+            {
+                return read<T>();
+            }
+            return std::nullopt;
+        }
+
+        bool trySeek(int64_t len)
+        {
+            auto actualLen = getSafeSeekAmount(len);
+            if (actualLen != 0)
+            {
+                if (actualLen == len)
+                {
+                    _stream->seek(actualLen);
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        bool seekSafe(int64_t len)
+        {
+            auto actualLen = getSafeSeekAmount(len);
+            if (actualLen != 0)
+            {
+                _stream->seek(actualLen);
+                return actualLen == len;
+            }
+            return true;
+        }
+
+    private:
+        int64_t getSafeSeekAmount(int64_t len)
+        {
+            if (len == 0)
+            {
+                return 0;
+            }
+            else if (len < 0)
+            {
+                return -static_cast<int64_t>(std::max<uint64_t>(_stream->getPosition(), -len));
+            }
+            else
+            {
+                auto remainingLen = _stream->getLength() - _stream->getPosition();
+                return std::min<uint64_t>(len, remainingLen);
+            }
+        }
+    };
+
     namespace GxFlags
     {
         constexpr uint16_t bmp = 1 << 0;       // Image data is encoded as raw pixels
@@ -16,6 +95,9 @@ namespace cs
         constexpr uint16_t hasZoom = 1 << 4;   // Use a different sprite for higher zoom levels
         constexpr uint16_t noZoom = 1 << 5;    // Does not get drawn at higher zoom levels (only zoom 0)
     }
+
+    constexpr uint8_t GxRleRowLengthMask = 0x7F;
+    constexpr uint8_t GxRleRowEndFlag = 0x80;
 
     struct GxHeader
     {
@@ -32,6 +114,100 @@ namespace cs
         int16_t offsetY{};
         uint16_t flags{};
         uint16_t zoomOffset{};
+
+        /**
+         * Calculates the expected length of the entry's data based on the width, height and flags.
+         * For RLE, the data needs to be read in order to calculate the size, this may not be safe.
+         */
+        size_t calculateDataSize() const
+        {
+            auto [success, size] = calculateDataSize(std::numeric_limits<size_t>::max());
+            return size;
+        }
+
+        bool validateData(size_t bufferLen) const
+        {
+            auto [success, size] = calculateDataSize(bufferLen);
+            return success;
+        }
+
+        std::pair<bool, size_t> calculateDataSize(size_t bufferLen) const
+        {
+            if (offset == nullptr)
+            {
+                return std::make_pair(true, 0);
+            }
+
+            if (flags & GxFlags::isPalette)
+            {
+                auto len = width * 3;
+                return std::make_pair(bufferLen >= len, len);
+            }
+
+            if (!(flags & GxFlags::rle))
+            {
+                auto len = width * height;
+                return std::make_pair(bufferLen >= len, len);
+            }
+
+            return calculateRleSize(bufferLen);
+        }
+
+    private:
+        /**
+         * Calculates the size of RLE data by scanning the RLE data. If it reaches the end of the buffer,
+         * the size of the data read so far is returned.
+         * A boolean is returned to indicate whether the buffer was large enough for the RLE data.
+         */
+        std::pair<bool, size_t> calculateRleSize(size_t bufferLen) const
+        {
+            BinaryStream bs(offset, bufferLen);
+            BinaryReader br(bs);
+
+            std::optional<bool> bufferWasLargeEnough;
+
+            // Find the row with the largest offset
+            auto highestRowOffset = 0;
+            for (size_t i = 0; i < height - 1; i++)
+            {
+                auto rowOffset = br.tryRead<uint16_t>();
+                if (rowOffset)
+                {
+                    if (*rowOffset > highestRowOffset)
+                        highestRowOffset = *rowOffset;
+                }
+                else
+                {
+                    bufferWasLargeEnough = false;
+                }
+            }
+
+            // Read the elements of the row with the largest offset (usually the last row)
+            bs.setPosition(0);
+            if (br.seekSafe(highestRowOffset))
+            {
+                auto endOfRow = false;
+                do
+                {
+                    // read num pixels
+                    auto chunk0 = br.tryRead<uint8_t>();
+                    if (!chunk0)
+                        break;
+
+                    // skip x
+                    if (!br.trySeek(1))
+                        break;
+
+                    // skip pixels
+                    if (!br.trySeek(*chunk0 & GxRleRowLengthMask))
+                        break;
+
+                    endOfRow = (*chunk0 & GxRleRowEndFlag) != 0;
+                } while (!endOfRow);
+                bufferWasLargeEnough = endOfRow;
+            }
+            return std::make_pair(bufferWasLargeEnough.value_or(false), bs.getPosition());
+        }
     };
 
     struct GxFile
@@ -41,26 +217,6 @@ namespace cs
         std::unique_ptr<uint8_t[]> data;
     };
 }
-
-class BinaryReader
-{
-private:
-    Stream* _stream{};
-
-public:
-    BinaryReader(Stream& stream)
-        : _stream(&stream)
-    {
-    }
-
-    template<typename T>
-    T read()
-    {
-        T buffer;
-        _stream->read(&buffer, sizeof(T));
-        return buffer;
-    }
-};
 
 static GxFile loadGxFile(const fs::path& path)
 {
@@ -169,11 +325,85 @@ int main(int argc, const char** argv)
             std::printf("    zoom offset: %d\n", entry.zoomOffset);
             std::printf("    flags: 0x%02X (%s)\n", entry.flags, szFlags.c_str());
             std::printf("    data offset Y: 0x%08X\n", offset);
+
+            auto bufferLen = gxFile.header.dataSize - (static_cast<uint8_t*>(entry.offset) - gxFile.data.get());
+            auto [valid, dataSize] = entry.calculateDataSize(bufferLen);
+            std::printf("    data length: %lld (%s)\n", dataSize, valid ? "valid" : "invalid");
         }
         else
         {
             std::fprintf(stderr, "    invalid entry index\n");
             return -1;
+        }
+    }
+    else if (command == "exportall")
+    {
+        if (argc <= 3)
+        {
+            return showHelp();
+        }
+
+        auto gxPath = std::string_view(argv[2]);
+        GxFile gxFile;
+        try
+        {
+            gxFile = loadGxFile(fs::u8path(gxPath));
+        }
+        catch (const std::exception& e)
+        {
+            std::fprintf(stderr, "Unable to read gx file: %s\n", e.what());
+            return -1;
+        }
+
+        auto outputDirectory = fs::u8path(argv[3]);
+        if (fs::is_directory(outputDirectory) || fs::create_directories(outputDirectory))
+        {
+            auto manifestPath = outputDirectory / "manifest.json";
+
+            std::string sb;
+            sb.append("[\n");
+            for (size_t i = 0; i < gxFile.header.numEntries; i++)
+            {
+                auto& entry = gxFile.entries[i];
+                sb.append("    {\n");
+
+                char filename[32];
+                std::snprintf(filename, sizeof(filename), "%05lld.png", i);
+                sb.append("        \"path\": \"");
+                sb.append(filename);
+                sb.append("\",\n");
+
+                if (entry.offsetX != 0)
+                {
+                    sb.append("        \"x_offset\": ");
+                    sb.append(std::to_string(entry.offsetX));
+                    sb.append(",\n");
+                }
+                if (entry.offsetY != 0)
+                {
+                    sb.append("        \"y_offset\": ");
+                    sb.append(std::to_string(entry.offsetY));
+                    sb.append(",\n");
+                }
+                if ((entry.flags & GxFlags::hasZoom) && entry.zoomOffset != 0)
+                {
+                    sb.append("        \"zoomOffset\": ");
+                    sb.append(std::to_string(entry.zoomOffset));
+                    sb.append(",\n");
+                }
+                if (!(entry.flags & GxFlags::rle))
+                {
+                    sb.append("        \"forceBmp\": true,\n");
+                }
+                sb.append("        \"palette\": \"keep\"\n");
+
+                sb.append("    },\n");
+            }
+            sb.erase(sb.size() - 2, 2);
+            sb.append("\n]\n");
+
+            FileStream fs(manifestPath, StreamFlags::write);
+            fs.write(sb.data(), sb.size());
         }
     }
     return 0;

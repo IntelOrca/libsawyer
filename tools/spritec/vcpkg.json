@@ -1,0 +1,7 @@
+{
+    "name": "spritec",
+    "version-string": "0.1.0",
+    "dependencies": [
+        "libpng"
+    ]
+}

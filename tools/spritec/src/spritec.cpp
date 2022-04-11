@@ -283,7 +283,7 @@ static std::string stringifyFlags(uint16_t flags)
     return result;
 }
 
-int main(int argc, const char** argv)
+int main2(int argc, const char** argv)
 {
     if (argc <= 2)
     {
@@ -408,7 +408,45 @@ int main(int argc, const char** argv)
 
             FileStream fs(manifestPath, StreamFlags::write);
             fs.write(sb.data(), sb.size());
+
+            auto& palette = GetStandardPalette();
+            for (size_t i = 0; i < gxFile.header.numEntries; i++)
+            {
+                const auto& entry = gxFile.entries[i];
+                if (entry.flags & GxFlags::rle)
+                    continue;
+
+                char filename[32];
+                std::snprintf(filename, sizeof(filename), "%05lld.png", i);
+                printf("Writing %s...\n", filename);
+                Image image;
+                image.width = entry.width;
+                image.height = entry.height;
+                image.depth = 8;
+                image.palette = std::make_unique<Palette>(palette);
+
+                auto src8 = static_cast<uint8_t*>(entry.offset);
+                image.pixels = std::vector<uint8_t>(src8, src8 + (entry.width * entry.height));
+                image.stride = entry.width;
+
+                auto imageFilename = outputDirectory / filename;
+                FileStream pngfs(imageFilename, StreamFlags::write);
+                image.WriteToPng(pngfs);
+            }
         }
     }
     return 0;
+}
+
+int main(int argc, const char** argv)
+{
+    try
+    {
+        return main2(argc, argv);
+    }
+    catch (std::exception& e)
+    {
+        fprintf(stderr, "An error occurred: %s\n", e.what());
+        return -2;
+    }
 }

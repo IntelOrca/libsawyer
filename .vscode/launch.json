@@ -19,6 +19,21 @@
                     "ignoreFailures": true
                 }
             ]
+        },
+        {
+            "name": "Debug spritec",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/tools/spritec/bin/spritec.exe",
+            "args": [
+                "exportall",
+                "F:\\games\\rct2\\Data\\g1.dat",
+                "out"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/tools/spritec",
+            "environment": [],
+            "console": "externalTerminal"
         }
     ]
 }

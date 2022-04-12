@@ -1,4 +1,7 @@
+#include "spritec.h"
+#include "CommandLine.h"
 #include <cstdio>
+#include <iostream>
 #include <optional>
 #include <sawyer/Image.h>
 #include <sawyer/Palette.h>
@@ -8,6 +11,7 @@
 #include <string_view>
 
 using namespace cs;
+using namespace spritec;
 
 const Palette& GetStandardPalette();
 
@@ -251,20 +255,6 @@ static GxFile loadGxFile(const fs::path& path)
     return file;
 }
 
-static int showHelp()
-{
-    std::printf(
-        "usage: spritec append    <gx_file> <input> [x_offset y_offset]\n"
-        "               build     <gx_file> <json_path>\n"
-        "               create    <gx_file>\n"
-        "               details   <gx_file> [idx]\n"
-        "               export    <gx_file> [idx] <output_file>\n"
-        "               exportall <gx_file> <output_directory>\n"
-        "options:\n"
-        "    -q     Quiet\n");
-    return 1;
-}
-
 static std::string stringifyFlags(uint16_t flags)
 {
     std::string result;
@@ -283,170 +273,272 @@ static std::string stringifyFlags(uint16_t flags)
     return result;
 }
 
-int main2(int argc, const char** argv)
+static std::optional<GxFile> readGxFileOrError(std::string_view path)
 {
-    if (argc <= 2)
+    try
     {
-        return showHelp();
+        return loadGxFile(fs::u8path(path));
+    }
+    catch (const std::exception& e)
+    {
+        std::fprintf(stderr, "Unable to read gx file: %s\n", e.what());
+        return {};
+    }
+}
+
+int runDetails(const CommandLineOptions& options)
+{
+    auto gxFile = readGxFileOrError(options.path);
+    if (!gxFile)
+    {
+        return ExitCodes::fileError;
     }
 
-    auto command = std::string_view(argv[1]);
-    if (command == "details")
+    std::printf("gx file:\n");
+    std::printf("    numEntries: %d\n", gxFile->header.numEntries);
+    std::printf("    dataSize: %d\n\n", gxFile->header.dataSize);
+
+    if (!options.idx)
     {
-        if (argc <= 3)
+        std::cerr << "index not specified" << std::endl;
+        return ExitCodes::invalidArgument;
+    }
+
+    auto idx = *options.idx;
+    std::printf("entry %d:\n", idx);
+    if (idx >= 0 && idx < gxFile->entries.size())
+    {
+        const auto& entry = gxFile->entries[idx];
+        auto offset = static_cast<uint32_t>(reinterpret_cast<uint8_t*>(entry.offset) - gxFile->data.get());
+        auto szFlags = stringifyFlags(entry.flags);
+
+        std::printf("    width: %d\n", entry.width);
+        std::printf("    height: %d\n", entry.height);
+        std::printf("    offset X: %d\n", entry.offsetX);
+        std::printf("    offset Y: %d\n", entry.offsetY);
+        std::printf("    zoom offset: %d\n", entry.zoomOffset);
+        std::printf("    flags: 0x%02X (%s)\n", entry.flags, szFlags.c_str());
+        std::printf("    data offset Y: 0x%08X\n", offset);
+
+        auto bufferLen = gxFile->header.dataSize - (static_cast<uint8_t*>(entry.offset) - gxFile->data.get());
+        auto [valid, dataSize] = entry.calculateDataSize(bufferLen);
+        std::printf("    data length: %lld (%s)\n", dataSize, valid ? "valid" : "invalid");
+        return ExitCodes::ok;
+    }
+    else
+    {
+        std::fprintf(stderr, "    invalid entry index\n");
+        return ExitCodes::invalidArgument;
+    }
+}
+
+static std::string buildManifest(const GxFile& gxFile)
+{
+    std::string sb;
+    sb.append("[\n");
+    for (size_t i = 0; i < gxFile.header.numEntries; i++)
+    {
+        auto& entry = gxFile.entries[i];
+        sb.append("    {\n");
+
+        char filename[32];
+        std::snprintf(filename, sizeof(filename), "%05lld.png", i);
+        sb.append("        \"path\": \"");
+        sb.append(filename);
+        sb.append("\",\n");
+
+        if (entry.offsetX != 0)
         {
-            return showHelp();
+            sb.append("        \"x_offset\": ");
+            sb.append(std::to_string(entry.offsetX));
+            sb.append(",\n");
         }
-
-        auto gxPath = std::string_view(argv[2]);
-        GxFile gxFile;
-        try
+        if (entry.offsetY != 0)
         {
-            gxFile = loadGxFile(fs::u8path(gxPath));
+            sb.append("        \"y_offset\": ");
+            sb.append(std::to_string(entry.offsetY));
+            sb.append(",\n");
         }
-        catch (const std::exception& e)
+        if ((entry.flags & GxFlags::hasZoom) && entry.zoomOffset != 0)
         {
-            std::fprintf(stderr, "Unable to read gx file: %s\n", e.what());
-            return -1;
+            sb.append("        \"zoomOffset\": ");
+            sb.append(std::to_string(entry.zoomOffset));
+            sb.append(",\n");
         }
-
-        std::printf("gx file:\n");
-        std::printf("    numEntries: %d\n", gxFile.header.numEntries);
-        std::printf("    dataSize: %d\n\n", gxFile.header.dataSize);
-
-        auto idx = std::stoi(argv[3]);
-        std::printf("entry %d:\n", idx);
-        if (idx >= 0 && idx < gxFile.entries.size())
+        if (!(entry.flags & GxFlags::rle))
         {
-            const auto& entry = gxFile.entries[idx];
-            auto offset = static_cast<uint32_t>(reinterpret_cast<uint8_t*>(entry.offset) - gxFile.data.get());
-            auto szFlags = stringifyFlags(entry.flags);
+            sb.append("        \"forceBmp\": true,\n");
+        }
+        sb.append("        \"palette\": \"keep\"\n");
 
-            std::printf("    width: %d\n", entry.width);
-            std::printf("    height: %d\n", entry.height);
-            std::printf("    offset X: %d\n", entry.offsetX);
-            std::printf("    offset Y: %d\n", entry.offsetY);
-            std::printf("    zoom offset: %d\n", entry.zoomOffset);
-            std::printf("    flags: 0x%02X (%s)\n", entry.flags, szFlags.c_str());
-            std::printf("    data offset Y: 0x%08X\n", offset);
+        sb.append("    },\n");
+    }
+    sb.erase(sb.size() - 2, 2);
+    sb.append("\n]\n");
+    return sb;
+}
 
-            auto bufferLen = gxFile.header.dataSize - (static_cast<uint8_t*>(entry.offset) - gxFile.data.get());
-            auto [valid, dataSize] = entry.calculateDataSize(bufferLen);
-            std::printf("    data length: %lld (%s)\n", dataSize, valid ? "valid" : "invalid");
+static void exportManifest(const GxFile& gxFile, const fs::path& manifestPath)
+{
+    auto manifest = buildManifest(gxFile);
+    FileStream fs(manifestPath, StreamFlags::write);
+    fs.write(manifest.data(), manifest.size());
+}
+
+static void exportImage(const GxEntry& entry, const Palette& palette, const fs::path& imageFilename)
+{
+    Image image;
+    image.width = entry.width;
+    image.height = entry.height;
+    image.depth = 8;
+    image.palette = std::make_unique<Palette>(palette);
+
+    auto src8 = static_cast<uint8_t*>(entry.offset);
+    image.pixels = std::vector<uint8_t>(src8, src8 + (entry.width * entry.height));
+    image.stride = entry.width;
+
+    FileStream pngfs(imageFilename, StreamFlags::write);
+    image.WriteToPng(pngfs);
+}
+
+int runExportAll(const CommandLineOptions& options)
+{
+    auto gxFile = readGxFileOrError(options.path);
+    if (!gxFile)
+    {
+        return ExitCodes::fileError;
+    }
+
+    auto outputDirectory = fs::u8path(options.outputPath);
+    if (fs::is_directory(outputDirectory) || fs::create_directories(outputDirectory))
+    {
+        exportManifest(*gxFile, outputDirectory / "manifest.json");
+
+        auto& palette = GetStandardPalette();
+        for (size_t i = 0; i < gxFile->header.numEntries; i++)
+        {
+            const auto& entry = gxFile->entries[i];
+            if (entry.flags & GxFlags::rle)
+                continue;
+
+            char filename[32]{};
+            std::snprintf(filename, sizeof(filename), "%05lld.png", i);
+            if (!options.quiet)
+            {
+                printf("Writing %s...\n", filename);
+            }
+
+            auto imageFilename = outputDirectory / filename;
+            exportImage(entry, palette, imageFilename);
+        }
+        return ExitCodes::ok;
+    }
+    else
+    {
+        std::cerr << "Unable to create or access output directory" << std::endl;
+        return ExitCodes::fileError;
+    }
+}
+
+std::optional<CommandLineOptions> parseCommandLine(int argc, const char** argv)
+{
+    auto parser = CommandLineParser(argc, argv)
+                      .registerOption("-q")
+                      .registerOption("--help", "-h")
+                      .registerOption("--version");
+    if (!parser.parse())
+    {
+        std::cerr << parser.getErrorMessage() << std::endl;
+        return {};
+    }
+
+    CommandLineOptions options;
+    if (parser.hasOption("--version"))
+    {
+        options.action = CommandLineAction::version;
+    }
+    else if (parser.hasOption("--help") || parser.hasOption("-h"))
+    {
+        options.action = CommandLineAction::help;
+    }
+    else
+    {
+        auto firstArg = parser.getArg(0);
+        if (firstArg == "details")
+        {
+            options.action = CommandLineAction::details;
+            options.path = parser.getArg(1);
+            options.idx = parser.getArg<int32_t>(2);
+        }
+        else if (firstArg == "exportall")
+        {
+            options.action = CommandLineAction::exportall;
+            options.path = parser.getArg(1);
+            options.outputPath = parser.getArg(2);
         }
         else
         {
-            std::fprintf(stderr, "    invalid entry index\n");
-            return -1;
+            options.action = CommandLineAction::help;
         }
     }
-    else if (command == "exportall")
-    {
-        if (argc <= 3)
-        {
-            return showHelp();
-        }
 
-        auto gxPath = std::string_view(argv[2]);
-        GxFile gxFile;
-        try
-        {
-            gxFile = loadGxFile(fs::u8path(gxPath));
-        }
-        catch (const std::exception& e)
-        {
-            std::fprintf(stderr, "Unable to read gx file: %s\n", e.what());
-            return -1;
-        }
+    options.quiet = parser.hasOption("-q");
 
-        auto outputDirectory = fs::u8path(argv[3]);
-        if (fs::is_directory(outputDirectory) || fs::create_directories(outputDirectory))
-        {
-            auto manifestPath = outputDirectory / "manifest.json";
+    return options;
+}
 
-            std::string sb;
-            sb.append("[\n");
-            for (size_t i = 0; i < gxFile.header.numEntries; i++)
-            {
-                auto& entry = gxFile.entries[i];
-                sb.append("    {\n");
+static std::string getVersionInfo()
+{
+    return "1.0";
+}
 
-                char filename[32];
-                std::snprintf(filename, sizeof(filename), "%05lld.png", i);
-                sb.append("        \"path\": \"");
-                sb.append(filename);
-                sb.append("\",\n");
+static void printVersion()
+{
+    std::cout << getVersionInfo() << std::endl;
+}
 
-                if (entry.offsetX != 0)
-                {
-                    sb.append("        \"x_offset\": ");
-                    sb.append(std::to_string(entry.offsetX));
-                    sb.append(",\n");
-                }
-                if (entry.offsetY != 0)
-                {
-                    sb.append("        \"y_offset\": ");
-                    sb.append(std::to_string(entry.offsetY));
-                    sb.append(",\n");
-                }
-                if ((entry.flags & GxFlags::hasZoom) && entry.zoomOffset != 0)
-                {
-                    sb.append("        \"zoomOffset\": ");
-                    sb.append(std::to_string(entry.zoomOffset));
-                    sb.append(",\n");
-                }
-                if (!(entry.flags & GxFlags::rle))
-                {
-                    sb.append("        \"forceBmp\": true,\n");
-                }
-                sb.append("        \"palette\": \"keep\"\n");
-
-                sb.append("    },\n");
-            }
-            sb.erase(sb.size() - 2, 2);
-            sb.append("\n]\n");
-
-            FileStream fs(manifestPath, StreamFlags::write);
-            fs.write(sb.data(), sb.size());
-
-            auto& palette = GetStandardPalette();
-            for (size_t i = 0; i < gxFile.header.numEntries; i++)
-            {
-                const auto& entry = gxFile.entries[i];
-                if (entry.flags & GxFlags::rle)
-                    continue;
-
-                char filename[32];
-                std::snprintf(filename, sizeof(filename), "%05lld.png", i);
-                printf("Writing %s...\n", filename);
-                Image image;
-                image.width = entry.width;
-                image.height = entry.height;
-                image.depth = 8;
-                image.palette = std::make_unique<Palette>(palette);
-
-                auto src8 = static_cast<uint8_t*>(entry.offset);
-                image.pixels = std::vector<uint8_t>(src8, src8 + (entry.width * entry.height));
-                image.stride = entry.width;
-
-                auto imageFilename = outputDirectory / filename;
-                FileStream pngfs(imageFilename, StreamFlags::write);
-                image.WriteToPng(pngfs);
-            }
-        }
-    }
-    return 0;
+static void printHelp()
+{
+    std::cout << "gx Sprite Archive Tool " << getVersionInfo() << std::endl;
+    std::cout << std::endl;
+    std::cout << "usage: spritec append    <gx_file> <input> [x_offset y_offset]" << std::endl;
+    std::cout << "               build     <gx_file> <json_path>" << std::endl;
+    std::cout << "               create    <gx_file>" << std::endl;
+    std::cout << "               details   <gx_file> [idx]" << std::endl;
+    std::cout << "               export    <gx_file> [idx] <output_file>" << std::endl;
+    std::cout << "               exportall <gx_file> <output_directory>" << std::endl;
+    std::cout << "options:" << std::endl;
+    std::cout << "           -q     Quiet" << std::endl;
+    std::cout << "--help     -h     Print help" << std::endl;
+    std::cout << "--version         Print version" << std::endl;
 }
 
 int main(int argc, const char** argv)
 {
     try
     {
-        return main2(argc, argv);
+        auto options = parseCommandLine(argc, argv);
+        if (!options)
+        {
+            return ExitCodes::commandLineParseError;
+        }
+
+        switch (options->action)
+        {
+            case CommandLineAction::details:
+                runDetails(*options);
+                break;
+            case CommandLineAction::exportall:
+                runExportAll(*options);
+                break;
+            default:
+                printHelp();
+                return ExitCodes::commandLineError;
+        }
     }
     catch (std::exception& e)
     {
         fprintf(stderr, "An error occurred: %s\n", e.what());
-        return -2;
+        return ExitCodes::exception;
     }
 }

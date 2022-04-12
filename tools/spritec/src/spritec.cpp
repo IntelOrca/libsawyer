@@ -293,17 +293,17 @@ static std::string stringifyFlags(uint16_t flags)
 {
     std::string result;
     if (flags & GxFlags::bmp)
-        result += "bmp, ";
+        result += "bmp|";
     if (flags & GxFlags::rle)
-        result += "rle, ";
+        result += "rle|";
     if (flags & GxFlags::isPalette)
-        result += "isPalette, ";
+        result += "isPalette|";
     if (flags & GxFlags::hasZoom)
-        result += "hasZoom, ";
+        result += "hasZoom|";
     if (flags & GxFlags::noZoom)
-        result += "noZoom, ";
-    if (result.size() >= 2)
-        result.resize(result.size() - 2);
+        result += "noZoom|";
+    if (result.size() >= 1)
+        result.resize(result.size() - 1);
     return result;
 }
 
@@ -334,14 +334,13 @@ int runDetails(const CommandLineOptions& options)
 
     if (!options.idx)
     {
-        std::cerr << "index not specified" << std::endl;
-        return ExitCodes::invalidArgument;
+        return ExitCodes::ok;
     }
 
     auto idx = *options.idx;
-    std::printf("entry %d:\n", idx);
     if (idx >= 0 && idx < gxFile->entries.size())
     {
+        std::printf("entry %d:\n", idx);
         const auto& entry = gxFile->entries[idx];
         auto offset = static_cast<uint32_t>(reinterpret_cast<uint8_t*>(entry.offset) - gxFile->data.get());
         auto szFlags = stringifyFlags(entry.flags);
@@ -364,6 +363,25 @@ int runDetails(const CommandLineOptions& options)
         std::fprintf(stderr, "    invalid entry index\n");
         return ExitCodes::invalidArgument;
     }
+}
+
+int runList(const CommandLineOptions& options)
+{
+    auto gxFile = readGxFileOrError(options.path);
+    if (!gxFile)
+    {
+        return ExitCodes::fileError;
+    }
+
+    std::printf("index offset     width height offsetX offsetY zoomOffset flags\n");
+    for (size_t i = 0; i < gxFile->header.numEntries; i++)
+    {
+        const auto& entry = gxFile->entries[i];
+        auto offset = static_cast<uint32_t>(reinterpret_cast<uint8_t*>(entry.offset) - gxFile->data.get());
+        auto szFlags = stringifyFlags(entry.flags);
+        std::printf("%05lld 0x%08X %5d %6d %7d %7d %10d %s\n", i, offset, entry.width, entry.height, entry.offsetX, entry.offsetY, entry.zoomOffset, szFlags.c_str());
+    }
+    return ExitCodes::ok;
 }
 
 static std::string buildManifest(const GxFile& gxFile)
@@ -539,6 +557,11 @@ std::optional<CommandLineOptions> parseCommandLine(int argc, const char** argv)
             options.path = parser.getArg(1);
             options.idx = parser.getArg<int32_t>(2);
         }
+        else if (firstArg == "list")
+        {
+            options.action = CommandLineAction::list;
+            options.path = parser.getArg(1);
+        }
         else if (firstArg == "export")
         {
             options.action = CommandLineAction::exportSingle;
@@ -581,6 +604,7 @@ static void printHelp()
     std::cout << "               build     <gx_file> <json_path>" << std::endl;
     std::cout << "               create    <gx_file>" << std::endl;
     std::cout << "               details   <gx_file> [idx]" << std::endl;
+    std::cout << "               list      <gx_file>" << std::endl;
     std::cout << "               export    <gx_file> [idx] <output_file>" << std::endl;
     std::cout << "               exportall <gx_file> <output_directory>" << std::endl;
     std::cout << "options:" << std::endl;
@@ -603,6 +627,9 @@ int main(int argc, const char** argv)
         {
             case CommandLineAction::details:
                 runDetails(*options);
+                break;
+            case CommandLineAction::list:
+                runList(*options);
                 break;
             case CommandLineAction::exportSingle:
                 runExport(*options);

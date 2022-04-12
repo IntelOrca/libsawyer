@@ -16,6 +16,7 @@ namespace spritec
     enum class CommandLineAction
     {
         details,
+        list,
         exportSingle,
         exportAll,
         help,

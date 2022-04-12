@@ -176,7 +176,7 @@ namespace cs
 
             // Find the row with the largest offset
             auto highestRowOffset = 0;
-            for (size_t i = 0; i < height - 1; i++)
+            for (size_t i = 0; i < height; i++)
             {
                 auto rowOffset = br.tryRead<uint16_t>();
                 if (rowOffset)
@@ -253,6 +253,40 @@ static GxFile loadGxFile(const fs::path& path)
     fs.read(file.data.get(), file.header.dataSize);
 
     return file;
+}
+
+static void convertRleToBmp(const GxEntry& entry, void* dst)
+{
+    assert(entry.flags & GxFlags::rle);
+
+    auto startAddress = static_cast<uint8_t*>(entry.offset);
+    auto dst8 = static_cast<uint8_t*>(dst);
+    for (int32_t y = 0; y < entry.height; y++)
+    {
+        // Set source pointer to the start of the row
+        auto rowOffset8 = startAddress + (y * 2);
+        uint16_t rowOffset = rowOffset8[0] | (rowOffset8[1] << 8);
+        auto src8 = startAddress + rowOffset;
+
+        // Read row offset
+        int32_t x = 0;
+        auto endOfRow = false;
+        do
+        {
+            // Get run length, end flag and x position
+            auto code = *src8++;
+            auto len = code & GxRleRowLengthMask;
+            endOfRow = (code & GxRleRowEndFlag) != 0;
+            x = *src8++;
+
+            // Copy pixel run to destination buffer
+            std::memcpy(dst8 + x, src8, len);
+            src8 += len;
+        } while (!endOfRow);
+
+        // Move destination pointer to next row
+        dst8 += entry.width;
+    }
 }
 
 static std::string stringifyFlags(uint16_t flags)
@@ -393,12 +427,49 @@ static void exportImage(const GxEntry& entry, const Palette& palette, const fs::
     image.depth = 8;
     image.palette = std::make_unique<Palette>(palette);
 
-    auto src8 = static_cast<uint8_t*>(entry.offset);
-    image.pixels = std::vector<uint8_t>(src8, src8 + (entry.width * entry.height));
+    image.pixels = std::vector<uint8_t>(entry.width * entry.height);
     image.stride = entry.width;
+    if (entry.flags & GxFlags::rle)
+    {
+        convertRleToBmp(entry, image.pixels.data());
+    }
+    else
+    {
+        std::memcpy(image.pixels.data(), entry.offset, image.pixels.size());
+    }
 
     FileStream pngfs(imageFilename, StreamFlags::write);
     image.WriteToPng(pngfs);
+}
+
+int runExport(const CommandLineOptions& options)
+{
+    auto gxFile = readGxFileOrError(options.path);
+    if (!gxFile)
+    {
+        return ExitCodes::fileError;
+    }
+
+    if (!options.idx)
+    {
+        std::cerr << "index not specified" << std::endl;
+        return ExitCodes::invalidArgument;
+    }
+
+    auto idx = *options.idx;
+    if (idx >= 0 && idx < gxFile->entries.size())
+    {
+        const auto& entry = gxFile->entries[idx];
+        auto& palette = GetStandardPalette();
+        auto imageFilename = fs::u8path(options.outputPath);
+        exportImage(entry, palette, imageFilename);
+        return ExitCodes::ok;
+    }
+    else
+    {
+        std::fprintf(stderr, "    invalid entry index\n");
+        return ExitCodes::invalidArgument;
+    }
 }
 
 int runExportAll(const CommandLineOptions& options)
@@ -418,8 +489,6 @@ int runExportAll(const CommandLineOptions& options)
         for (size_t i = 0; i < gxFile->header.numEntries; i++)
         {
             const auto& entry = gxFile->entries[i];
-            if (entry.flags & GxFlags::rle)
-                continue;
 
             char filename[32]{};
             std::snprintf(filename, sizeof(filename), "%05lld.png", i);
@@ -470,9 +539,16 @@ std::optional<CommandLineOptions> parseCommandLine(int argc, const char** argv)
             options.path = parser.getArg(1);
             options.idx = parser.getArg<int32_t>(2);
         }
+        else if (firstArg == "export")
+        {
+            options.action = CommandLineAction::exportSingle;
+            options.path = parser.getArg(1);
+            options.idx = parser.getArg<int32_t>(2);
+            options.outputPath = parser.getArg(3);
+        }
         else if (firstArg == "exportall")
         {
-            options.action = CommandLineAction::exportall;
+            options.action = CommandLineAction::exportAll;
             options.path = parser.getArg(1);
             options.outputPath = parser.getArg(2);
         }
@@ -528,7 +604,10 @@ int main(int argc, const char** argv)
             case CommandLineAction::details:
                 runDetails(*options);
                 break;
-            case CommandLineAction::exportall:
+            case CommandLineAction::exportSingle:
+                runExport(*options);
+                break;
+            case CommandLineAction::exportAll:
                 runExportAll(*options);
                 break;
             default:

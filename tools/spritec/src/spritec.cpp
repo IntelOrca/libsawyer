@@ -289,6 +289,21 @@ static void convertRleToBmp(const GxEntry& entry, void* dst)
     }
 }
 
+static void convertPaletteToBmp(const GxEntry& entry, void* dst)
+{
+    auto src8 = static_cast<const uint8_t*>(entry.offset);
+    auto dst8 = static_cast<uint8_t*>(dst);
+    for (int32_t x = 0; x < entry.width; x++)
+    {
+        dst8[0] = src8[2];
+        dst8[1] = src8[1];
+        dst8[2] = src8[0];
+        dst8[3] = 0xFF;
+        src8 += 3;
+        dst8 += 4;
+    }
+}
+
 static std::string stringifyFlags(uint16_t flags)
 {
     std::string result;
@@ -399,6 +414,23 @@ static std::string buildManifest(const GxFile& gxFile)
         sb.append(filename);
         sb.append("\",\n");
 
+        if (entry.flags & GxFlags::isPalette)
+        {
+            sb.append("        \"format\": \"palette\",\n");
+        }
+        else
+        {
+            if (entry.flags & GxFlags::rle)
+            {
+                sb.append("        \"format\": \"rle\",\n");
+            }
+            else
+            {
+                sb.append("        \"format\": \"bmp\",\n");
+            }
+            sb.append("        \"palette\": \"keep\",\n");
+        }
+
         if (entry.offsetX != 0)
         {
             sb.append("        \"x_offset\": ");
@@ -417,13 +449,8 @@ static std::string buildManifest(const GxFile& gxFile)
             sb.append(std::to_string(entry.zoomOffset));
             sb.append(",\n");
         }
-        if (!(entry.flags & GxFlags::rle))
-        {
-            sb.append("        \"forceBmp\": true,\n");
-        }
-        sb.append("        \"palette\": \"keep\"\n");
-
-        sb.append("    },\n");
+        sb.erase(sb.size() - 2, 2);
+        sb.append("\n    },\n");
     }
     sb.erase(sb.size() - 2, 2);
     sb.append("\n]\n");
@@ -440,20 +467,31 @@ static void exportManifest(const GxFile& gxFile, const fs::path& manifestPath)
 static void exportImage(const GxEntry& entry, const Palette& palette, const fs::path& imageFilename)
 {
     Image image;
-    image.width = entry.width;
-    image.height = entry.height;
-    image.depth = 8;
-    image.palette = std::make_unique<Palette>(palette);
-
-    image.pixels = std::vector<uint8_t>(entry.width * entry.height);
-    image.stride = entry.width;
-    if (entry.flags & GxFlags::rle)
+    if (entry.flags & GxFlags::isPalette)
     {
-        convertRleToBmp(entry, image.pixels.data());
+        image.width = entry.width;
+        image.height = 1;
+        image.depth = 32;
+        image.pixels = std::vector<uint8_t>(entry.width * 4);
+        image.stride = entry.width * 4;
+        convertPaletteToBmp(entry, image.pixels.data());
     }
     else
     {
-        std::memcpy(image.pixels.data(), entry.offset, image.pixels.size());
+        image.width = entry.width;
+        image.height = entry.height;
+        image.palette = std::make_unique<Palette>(palette);
+        image.depth = 8;
+        image.pixels = std::vector<uint8_t>(entry.width * entry.height);
+        image.stride = entry.width;
+        if (entry.flags & GxFlags::rle)
+        {
+            convertRleToBmp(entry, image.pixels.data());
+        }
+        else
+        {
+            std::memcpy(image.pixels.data(), entry.offset, image.pixels.size());
+        }
     }
 
     FileStream pngfs(imageFilename, StreamFlags::write);

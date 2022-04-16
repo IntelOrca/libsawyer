@@ -1,5 +1,7 @@
 #include "external.h"
+#include <cstddef>
 #include <sawyer/FileSystem.hpp>
+#include <sawyer/Span.hpp>
 
 using namespace cs;
 
@@ -10,9 +12,14 @@ namespace spritec
     public:
         struct Entry
         {
-            GxEntry gx;
-            size_t dataOffset{};
-            size_t dataLength{};
+            uint32_t dataOffset{};
+            uint32_t dataLength{}; // Not saved
+            int16_t width{};
+            int16_t height{};
+            int16_t offsetX{};
+            int16_t offsetY{};
+            uint16_t flags{};
+            uint16_t zoomOffset{};
         };
 
         static SpriteArchive fromFile(const fs::path& path);
@@ -20,14 +27,15 @@ namespace spritec
         uint32_t getNumEntries() const;
         uint32_t getDataSize() const;
         const Entry& getEntry(uint32_t index) const;
-        const void* getEntryData(uint32_t index) const;
+        stdx::span<const std::byte> getEntryData(uint32_t index) const;
+        GxEntry getGx(uint32_t index) const;
 
-        void addEntry(const GxEntry& entry);
+        void addEntry(const Entry& entry);
         void removeEntry(uint32_t index);
         void writeToFile(const fs::path& path);
 
     private:
         std::vector<Entry> _entries;
-        std::vector<uint8_t> _data;
+        std::vector<std::byte> _data;
     };
 }

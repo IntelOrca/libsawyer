@@ -23,15 +23,14 @@ SpriteArchive SpriteArchive::fromFile(const fs::path& path)
     for (uint32_t i = 0; i < header.numEntries; i++)
     {
         auto& entry = archive._entries[i];
-        auto& gx = entry.gx;
 
         entry.dataOffset = br.read<uint32_t>();
-        gx.width = br.read<uint16_t>();
-        gx.height = br.read<uint16_t>();
-        gx.offsetX = br.read<uint16_t>();
-        gx.offsetY = br.read<uint16_t>();
-        gx.flags = br.read<uint16_t>();
-        gx.zoomOffset = br.read<uint16_t>();
+        entry.width = br.read<uint16_t>();
+        entry.height = br.read<uint16_t>();
+        entry.offsetX = br.read<uint16_t>();
+        entry.offsetY = br.read<uint16_t>();
+        entry.flags = br.read<uint16_t>();
+        entry.zoomOffset = br.read<uint16_t>();
 
         offsets.push_back(static_cast<uint32_t>(entry.dataOffset));
     }
@@ -71,12 +70,36 @@ uint32_t SpriteArchive::getDataSize() const
 
 const SpriteArchive::Entry& SpriteArchive::getEntry(uint32_t index) const
 {
+    if (index >= _entries.size())
+        throw std::invalid_argument("Invalid index");
+
     return _entries[index];
 }
 
-const void* SpriteArchive::getEntryData(uint32_t index) const
+stdx::span<const std::byte> SpriteArchive::getEntryData(uint32_t index) const
 {
-    return _data.data() + _entries[index].dataOffset;
+    if (index >= _entries.size())
+        throw std::invalid_argument("Invalid index");
+
+    const auto& entry = _entries[index];
+    const auto* ptr = _data.data() + entry.dataOffset;
+    return stdx::span<const std::byte>(ptr, entry.dataLength);
+}
+
+GxEntry SpriteArchive::getGx(uint32_t index) const
+{
+    const auto& entry = getEntry(index);
+    const auto& entryData = getEntryData(index);
+
+    GxEntry gx;
+    gx.offset = entryData.data();
+    gx.width = entry.width;
+    gx.height = entry.height;
+    gx.offsetX = entry.offsetX;
+    gx.offsetY = entry.offsetY;
+    gx.flags = entry.flags;
+    gx.zoomOffset = entry.zoomOffset;
+    return gx;
 }
 
 void SpriteArchive::writeToFile(const fs::path& path)
@@ -93,12 +116,12 @@ void SpriteArchive::writeToFile(const fs::path& path)
     {
         auto& entry = _entries[i];
         bw.write(static_cast<uint32_t>(entry.dataOffset));
-        bw.write(entry.gx.width);
-        bw.write(entry.gx.height);
-        bw.write(entry.gx.offsetX);
-        bw.write(entry.gx.offsetY);
-        bw.write(entry.gx.flags);
-        bw.write(entry.gx.zoomOffset);
+        bw.write(entry.width);
+        bw.write(entry.height);
+        bw.write(entry.offsetX);
+        bw.write(entry.offsetY);
+        bw.write(entry.flags);
+        bw.write(entry.zoomOffset);
     }
 
     // Write data

@@ -29,7 +29,7 @@ namespace cs
 
     struct GxEntry
     {
-        void* offset{};
+        const void* offset{};
         int16_t width{};
         int16_t height{};
         int16_t offsetX{};

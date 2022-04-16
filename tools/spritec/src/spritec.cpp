@@ -20,7 +20,7 @@ static void convertRleToBmp(const GxEntry& entry, void* dst)
 {
     assert(entry.flags & GxFlags::rle);
 
-    auto startAddress = static_cast<uint8_t*>(entry.offset);
+    auto startAddress = static_cast<const uint8_t*>(entry.offset);
     auto dst8 = static_cast<uint8_t*>(dst);
     for (int32_t y = 0; y < entry.height; y++)
     {
@@ -119,20 +119,20 @@ int runDetails(const CommandLineOptions& options)
     {
         std::printf("entry %d:\n", idx);
         auto entry = archive->getEntry(idx);
-        auto gx = entry.gx;
-        gx.offset = const_cast<void*>(archive->getEntryData(idx));
-        auto szFlags = stringifyFlags(gx.flags);
+        auto szFlags = stringifyFlags(entry.flags);
 
-        std::printf("    width: %d\n", gx.width);
-        std::printf("    height: %d\n", gx.height);
-        std::printf("    offset X: %d\n", gx.offsetX);
-        std::printf("    offset Y: %d\n", gx.offsetY);
-        std::printf("    zoom offset: %d\n", gx.zoomOffset);
-        std::printf("    flags: 0x%02X (%s)\n", gx.flags, szFlags.c_str());
-        std::printf("    data offset Y: 0x%08zX\n", entry.dataOffset);
+        std::printf("    width: %d\n", entry.width);
+        std::printf("    height: %d\n", entry.height);
+        std::printf("    offset X: %d\n", entry.offsetX);
+        std::printf("    offset Y: %d\n", entry.offsetY);
+        std::printf("    zoom offset: %d\n", entry.zoomOffset);
+        std::printf("    flags: 0x%02X (%s)\n", entry.flags, szFlags.c_str());
+        std::printf("    data offset: 0x%08X\n", entry.dataOffset);
+        std::printf("    data length: %u\n", entry.dataLength);
 
+        auto gx = archive->getGx(idx);
         auto [valid, dataSize] = gx.calculateDataSize(entry.dataLength);
-        std::printf("    data length: %lld (%s)\n", dataSize, valid ? "valid" : "invalid");
+        std::printf("    calculated data length: %lld (%s)\n", dataSize, valid ? "valid" : "invalid");
         return ExitCodes::ok;
     }
     else
@@ -155,9 +155,8 @@ int runList(const CommandLineOptions& options)
     for (uint32_t i = 0; i < numEntries; i++)
     {
         const auto& entry = archive->getEntry(i);
-        const auto& gx = entry.gx;
-        auto szFlags = stringifyFlags(gx.flags);
-        std::printf("%05d 0x%08zX %6zd %5d %6d %7d %7d %10d %s\n", i, entry.dataOffset, entry.dataLength, gx.width, gx.height, gx.offsetX, gx.offsetY, gx.zoomOffset, szFlags.c_str());
+        auto szFlags = stringifyFlags(entry.flags);
+        std::printf("%05d 0x%08X %6u %5d %6d %7d %7d %10d %s\n", i, entry.dataOffset, entry.dataLength, entry.width, entry.height, entry.offsetX, entry.offsetY, entry.zoomOffset, szFlags.c_str());
     }
     return ExitCodes::ok;
 }
@@ -169,7 +168,7 @@ static std::string buildManifest(const SpriteArchive& archive)
     auto numEntries = archive.getNumEntries();
     for (uint32_t i = 0; i < numEntries; i++)
     {
-        auto& entry = archive.getEntry(i).gx;
+        auto& entry = archive.getEntry(i);
         sb.append("    {\n");
 
         char filename[32];
@@ -280,10 +279,10 @@ int runExport(const CommandLineOptions& options)
     auto numEntries = archive->getNumEntries();
     if (idx >= 0 && static_cast<uint32_t>(idx) < numEntries)
     {
-        const auto& entry = archive->getEntry(idx);
+        const auto gx = archive->getGx(idx);
         auto& palette = GetStandardPalette();
         auto imageFilename = fs::u8path(options.outputPath);
-        exportImage(entry.gx, palette, imageFilename);
+        exportImage(gx, palette, imageFilename);
         return ExitCodes::ok;
     }
     else
@@ -310,9 +309,7 @@ int runExportAll(const CommandLineOptions& options)
         auto numEntries = archive->getNumEntries();
         for (uint32_t i = 0; i < numEntries; i++)
         {
-            const auto& entry = archive->getEntry(i);
-            auto gx = entry.gx;
-            gx.offset = const_cast<void*>(archive->getEntryData(i));
+            const auto gx = archive->getGx(i);
 
             char filename[32]{};
             std::snprintf(filename, sizeof(filename), "%05d.png", i);

@@ -178,3 +178,59 @@ void FileStream::write(const void* buffer, size_t len)
             throw std::runtime_error("Failed to write data");
     }
 }
+
+BinaryReader::BinaryReader(Stream& stream)
+    : _stream(&stream)
+{
+}
+
+bool BinaryReader::trySeek(int64_t len)
+{
+    auto actualLen = getSafeSeekAmount(len);
+    if (actualLen != 0)
+    {
+        if (actualLen == len)
+        {
+            _stream->seek(actualLen);
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool BinaryReader::seekSafe(int64_t len)
+{
+    auto actualLen = getSafeSeekAmount(len);
+    if (actualLen != 0)
+    {
+        _stream->seek(actualLen);
+        return actualLen == len;
+    }
+    return true;
+}
+
+int64_t BinaryReader::getSafeSeekAmount(int64_t len)
+{
+    if (len == 0)
+    {
+        return 0;
+    }
+    else if (len < 0)
+    {
+        return -static_cast<int64_t>(std::max<uint64_t>(_stream->getPosition(), -len));
+    }
+    else
+    {
+        auto remainingLen = _stream->getLength() - _stream->getPosition();
+        return std::min<uint64_t>(len, remainingLen);
+    }
+}
+
+BinaryWriter::BinaryWriter(Stream& stream)
+    : _stream(&stream)
+{
+}

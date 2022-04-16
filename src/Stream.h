@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <fstream>
+#include <optional>
 #include <vector>
 
 namespace cs
@@ -77,5 +78,54 @@ namespace cs
         void setPosition(uint64_t position) override;
         void read(void* buffer, size_t len) override;
         void write(const void* buffer, size_t len) override;
+    };
+
+    class BinaryReader final
+    {
+    private:
+        Stream* _stream{};
+
+    public:
+        BinaryReader(Stream& stream);
+
+        template<typename T>
+        T read()
+        {
+            T buffer;
+            _stream->read(&buffer, sizeof(T));
+            return buffer;
+        }
+
+        template<typename T>
+        std::optional<T> tryRead()
+        {
+            auto remainingLen = _stream->getLength() - _stream->getPosition();
+            if (remainingLen >= sizeof(T))
+            {
+                return read<T>();
+            }
+            return std::nullopt;
+        }
+
+        bool trySeek(int64_t len);
+        bool seekSafe(int64_t len);
+
+    private:
+        int64_t getSafeSeekAmount(int64_t len);
+    };
+
+    class BinaryWriter final
+    {
+    private:
+        Stream* _stream{};
+
+    public:
+        BinaryWriter(Stream& stream);
+
+        template<typename T>
+        void write(const T& value)
+        {
+            _stream->write(&value, sizeof(T));
+        }
     };
 }

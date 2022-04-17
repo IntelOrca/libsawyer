@@ -1,8 +1,11 @@
 #include "SpriteManifest.h"
+#include "SpriteArchive.h"
+#include "external.h"
 #include <nlohmann/json.hpp>
 #include <sawyer/Stream.h>
 
 using namespace cs;
+using namespace spritec;
 
 std::string readAllText(const fs::path& path)
 {
@@ -107,4 +110,63 @@ SpriteManifest SpriteManifest::fromFile(const fs::path& path)
     {
         throw std::runtime_error("Invalid manifest");
     }
+}
+
+std::string SpriteManifest::buildManifest(const SpriteArchive& archive)
+{
+    std::string sb;
+    sb.append("[\n");
+    auto numEntries = archive.getNumEntries();
+    for (uint32_t i = 0; i < numEntries; i++)
+    {
+        auto& entry = archive.getEntry(i);
+        sb.append("    {\n");
+
+        char filename[32];
+        std::snprintf(filename, sizeof(filename), "%05d.png", i);
+        sb.append("        \"path\": \"");
+        sb.append(filename);
+        sb.append("\",\n");
+
+        if (entry.flags & GxFlags::isPalette)
+        {
+            sb.append("        \"format\": \"palette\",\n");
+        }
+        else
+        {
+            if (entry.flags & GxFlags::rle)
+            {
+                sb.append("        \"format\": \"rle\",\n");
+            }
+            else
+            {
+                sb.append("        \"format\": \"bmp\",\n");
+            }
+            sb.append("        \"palette\": \"keep\",\n");
+        }
+
+        if (entry.offsetX != 0)
+        {
+            sb.append("        \"x\": ");
+            sb.append(std::to_string(entry.offsetX));
+            sb.append(",\n");
+        }
+        if (entry.offsetY != 0)
+        {
+            sb.append("        \"y\": ");
+            sb.append(std::to_string(entry.offsetY));
+            sb.append(",\n");
+        }
+        if ((entry.flags & GxFlags::hasZoom) && entry.zoomOffset != 0)
+        {
+            sb.append("        \"zoom\": ");
+            sb.append(std::to_string(entry.zoomOffset));
+            sb.append(",\n");
+        }
+        sb.erase(sb.size() - 2, 2);
+        sb.append("\n    },\n");
+    }
+    sb.erase(sb.size() - 2, 2);
+    sb.append("\n]\n");
+    return sb;
 }

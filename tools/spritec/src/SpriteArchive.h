@@ -1,3 +1,5 @@
+#pragma once
+
 #include "external.h"
 #include <cstddef>
 #include <sawyer/FileSystem.hpp>

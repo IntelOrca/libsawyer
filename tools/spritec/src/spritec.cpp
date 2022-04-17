@@ -1,10 +1,10 @@
 #include "spritec.h"
-#include "CommandLine.h"
 #include "SpriteArchive.h"
 #include "SpriteManifest.h"
 #include <cstdio>
 #include <iostream>
 #include <optional>
+#include <sawyer/CommandLine.h>
 #include <sawyer/Image.h>
 #include <sawyer/Palette.h>
 #include <sawyer/SawyerStream.h>
@@ -254,68 +254,9 @@ int runList(const CommandLineOptions& options)
     return ExitCodes::ok;
 }
 
-static std::string buildManifest(const SpriteArchive& archive)
-{
-    std::string sb;
-    sb.append("[\n");
-    auto numEntries = archive.getNumEntries();
-    for (uint32_t i = 0; i < numEntries; i++)
-    {
-        auto& entry = archive.getEntry(i);
-        sb.append("    {\n");
-
-        char filename[32];
-        std::snprintf(filename, sizeof(filename), "%05d.png", i);
-        sb.append("        \"path\": \"");
-        sb.append(filename);
-        sb.append("\",\n");
-
-        if (entry.flags & GxFlags::isPalette)
-        {
-            sb.append("        \"format\": \"palette\",\n");
-        }
-        else
-        {
-            if (entry.flags & GxFlags::rle)
-            {
-                sb.append("        \"format\": \"rle\",\n");
-            }
-            else
-            {
-                sb.append("        \"format\": \"bmp\",\n");
-            }
-            sb.append("        \"palette\": \"keep\",\n");
-        }
-
-        if (entry.offsetX != 0)
-        {
-            sb.append("        \"x\": ");
-            sb.append(std::to_string(entry.offsetX));
-            sb.append(",\n");
-        }
-        if (entry.offsetY != 0)
-        {
-            sb.append("        \"y\": ");
-            sb.append(std::to_string(entry.offsetY));
-            sb.append(",\n");
-        }
-        if ((entry.flags & GxFlags::hasZoom) && entry.zoomOffset != 0)
-        {
-            sb.append("        \"zoom\": ");
-            sb.append(std::to_string(entry.zoomOffset));
-            sb.append(",\n");
-        }
-        sb.erase(sb.size() - 2, 2);
-        sb.append("\n    },\n");
-    }
-    sb.erase(sb.size() - 2, 2);
-    sb.append("\n]\n");
-    return sb;
-}
-
 static void exportManifest(const SpriteArchive& archive, const fs::path& manifestPath)
 {
-    auto manifest = buildManifest(archive);
+    auto manifest = SpriteManifest::buildManifest(archive);
     FileStream fs(manifestPath, StreamFlags::write);
     fs.write(manifest.data(), manifest.size());
 }
@@ -504,9 +445,7 @@ static void printHelp()
 {
     std::cout << "gx Sprite Archive Tool " << getVersionInfo() << std::endl;
     std::cout << std::endl;
-    std::cout << "usage: spritec append    <gx_file> <input> [x_offset y_offset]" << std::endl;
-    std::cout << "               build     <gx_file> <json_path>" << std::endl;
-    std::cout << "               create    <gx_file>" << std::endl;
+    std::cout << "usage: spritec build     <gx_file> <json_path>" << std::endl;
     std::cout << "               details   <gx_file> [idx]" << std::endl;
     std::cout << "               list      <gx_file>" << std::endl;
     std::cout << "               export    <gx_file> [idx] <output_file>" << std::endl;

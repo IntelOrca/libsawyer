@@ -109,6 +109,34 @@ static ImageConverter::ConvertMode parseConvertMode(std::string_view s)
         throw std::runtime_error("Unknown or unsupported convert mode");
 }
 
+static void encodePalette(Stream& stream, const Image& image)
+{
+    const auto* src = image.pixels.data();
+    for (uint32_t x = 0; x < image.width; x++)
+    {
+        PaletteBGRA colour;
+        if (image.depth == 8)
+        {
+            colour = image.palette->Colour[*src++];
+        }
+        else if (image.depth == 24)
+        {
+            colour.Red = *src++;
+            colour.Green = *src++;
+            colour.Blue = *src++;
+            colour.Alpha = 255;
+        }
+        else if (image.depth == 32)
+        {
+            colour.Red = *src++;
+            colour.Green = *src++;
+            colour.Blue = *src++;
+            colour.Alpha = *src++;
+        }
+        stream.write(&colour, 3);
+    }
+}
+
 int runBuild(const CommandLineOptions& options)
 {
     auto manifest = SpriteManifest::fromFile(fs::path(options.manifestPath));
@@ -138,46 +166,62 @@ int runBuild(const CommandLineOptions& options)
                 img = img.crop(manifestEntry.srcX, manifestEntry.srcY, manifestEntry.srcWidth, manifestEntry.srcHeight);
             }
 
-            if (manifestEntry.palette == SpriteManifest::PaletteKind::keep)
+            if (manifestEntry.format == SpriteManifest::Format::palette)
             {
-                if (img.depth != 8)
-                    throw std::runtime_error("Expected image depth to be 8");
+                MemoryStream ms;
+                encodePalette(ms, img);
+
+                SpriteArchive::Entry entry;
+                entry.width = img.width;
+                entry.height = 1;
+                entry.offsetX = manifestEntry.offsetX;
+                entry.flags = GxFlags::isPalette;
+                archive.addEntry(entry, ms.asSpan<const std::byte>());
+                continue;
             }
             else
             {
-                ImageConverter converter;
-                img = converter.convertTo8bpp(img, convertMode);
-            }
-
-            if (img.stride != img.width)
-                throw std::runtime_error("Expected image stride to be the image width");
-
-            SpriteArchive::Entry entry;
-            entry.width = img.width;
-            entry.height = img.height;
-            entry.offsetX = manifestEntry.offsetX;
-            entry.offsetY = manifestEntry.offsetY;
-
-            if (manifestEntry.format == SpriteManifest::Format::automatic || manifestEntry.format == SpriteManifest::Format::rle)
-            {
-                ImageBuffer8 imageBuffer;
-                imageBuffer.width = img.width;
-                imageBuffer.height = img.height;
-                imageBuffer.data = img.pixels.data();
-
-                GxEncoder encoder;
-                if (manifestEntry.format == SpriteManifest::Format::rle || encoder.isWorthUsingRle(imageBuffer))
+                if (manifestEntry.palette == SpriteManifest::PaletteKind::keep)
                 {
-                    MemoryStream ms;
-                    encoder.encodeRle(imageBuffer, ms);
-                    entry.flags = GxFlags::bmp | GxFlags::rle;
-                    archive.addEntry(entry, stdx::span<const std::byte>(reinterpret_cast<std::byte*>(ms.data()), ms.getLength()));
-                    continue;
+                    if (img.depth != 8)
+                        throw std::runtime_error("Expected image depth to be 8");
                 }
-            }
+                else
+                {
+                    ImageConverter converter;
+                    img = converter.convertTo8bpp(img, convertMode);
+                }
 
-            entry.flags = GxFlags::bmp;
-            archive.addEntry(entry, stdx::span<const std::byte>(reinterpret_cast<std::byte*>(img.pixels.data()), img.pixels.size()));
+                if (img.stride != img.width)
+                    throw std::runtime_error("Expected image stride to be the image width");
+
+                SpriteArchive::Entry entry;
+                entry.width = img.width;
+                entry.height = img.height;
+                entry.offsetX = manifestEntry.offsetX;
+                entry.offsetY = manifestEntry.offsetY;
+
+                if (manifestEntry.format == SpriteManifest::Format::automatic || manifestEntry.format == SpriteManifest::Format::rle)
+                {
+                    ImageBuffer8 imageBuffer;
+                    imageBuffer.width = img.width;
+                    imageBuffer.height = img.height;
+                    imageBuffer.data = img.pixels.data();
+
+                    GxEncoder encoder;
+                    if (manifestEntry.format == SpriteManifest::Format::rle || encoder.isWorthUsingRle(imageBuffer))
+                    {
+                        MemoryStream ms;
+                        encoder.encodeRle(imageBuffer, ms);
+                        entry.flags = GxFlags::bmp | GxFlags::rle;
+                        archive.addEntry(entry, ms.asSpan<const std::byte>());
+                        continue;
+                    }
+                }
+
+                entry.flags = GxFlags::bmp;
+                archive.addEntry(entry, stdx::span<const std::byte>(reinterpret_cast<std::byte*>(img.pixels.data()), img.pixels.size()));
+            }
         }
         catch (const std::exception&)
         {

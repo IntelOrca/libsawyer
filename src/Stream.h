@@ -1,6 +1,7 @@
 #pragma once
 
 #include "FileSystem.hpp"
+#include "Span.hpp"
 #include <cstddef>
 #include <cstdint>
 #include <fstream>
@@ -62,6 +63,12 @@ namespace cs
         void setPosition(uint64_t position) override;
         void read(void* buffer, size_t len) override;
         void write(const void* buffer, size_t len) override;
+
+        template<typename T>
+        stdx::span<T> asSpan()
+        {
+            return stdx::span<T>(reinterpret_cast<T*>(data()), getLength());
+        }
     };
 
     class FileStream final : public Stream

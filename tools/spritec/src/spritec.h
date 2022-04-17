@@ -31,6 +31,7 @@ namespace spritec
         std::string outputPath;
         std::string manifestPath;
         std::optional<int32_t> idx;
+        std::string mode;
         bool quiet{};
     };
 }

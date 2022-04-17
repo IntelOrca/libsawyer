@@ -97,10 +97,23 @@ static std::optional<SpriteArchive> readGxFileOrError(std::string_view path)
     }
 }
 
+static ImageConverter::ConvertMode parseConvertMode(std::string_view s)
+{
+    if (s.empty() || s == "default")
+        return ImageConverter::ConvertMode::Default;
+    else if (s == "closest")
+        return ImageConverter::ConvertMode::Closest;
+    else if (s == "dithering")
+        return ImageConverter::ConvertMode::Dithering;
+    else
+        throw std::runtime_error("Unknown or unsupported convert mode");
+}
+
 int runBuild(const CommandLineOptions& options)
 {
     auto manifest = SpriteManifest::fromFile(fs::path(options.manifestPath));
     auto outputPath = fs::path(options.path);
+    auto convertMode = parseConvertMode(options.mode);
 
     SpriteArchive archive;
 
@@ -133,7 +146,7 @@ int runBuild(const CommandLineOptions& options)
             else
             {
                 ImageConverter converter;
-                img = converter.convertTo8bpp(img, ImageConverter::ConvertMode::Default);
+                img = converter.convertTo8bpp(img, convertMode);
             }
 
             if (img.stride != img.width)
@@ -413,6 +426,7 @@ int runExportAll(const CommandLineOptions& options)
 std::optional<CommandLineOptions> parseCommandLine(int argc, const char** argv)
 {
     auto parser = CommandLineParser(argc, argv)
+                      .registerOption("-m", 1)
                       .registerOption("-q")
                       .registerOption("--help", "-h")
                       .registerOption("--version");
@@ -470,6 +484,7 @@ std::optional<CommandLineOptions> parseCommandLine(int argc, const char** argv)
         }
     }
 
+    options.mode = parser.getArg("-m");
     options.quiet = parser.hasOption("-q");
 
     return options;
@@ -497,9 +512,10 @@ static void printHelp()
     std::cout << "               export    <gx_file> [idx] <output_file>" << std::endl;
     std::cout << "               exportall <gx_file> <output_directory>" << std::endl;
     std::cout << "options:" << std::endl;
-    std::cout << "           -q     Quiet" << std::endl;
-    std::cout << "--help     -h     Print help" << std::endl;
-    std::cout << "--version         Print version" << std::endl;
+    std::cout << "           -m <mode>  Image conversion mode. Can be: default, closest, or dithering" << std::endl;
+    std::cout << "           -q         Quiet" << std::endl;
+    std::cout << "--help     -h         Print help" << std::endl;
+    std::cout << "--version             Print version" << std::endl;
 }
 
 int main(int argc, const char** argv)

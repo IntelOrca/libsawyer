@@ -30,7 +30,7 @@ std::string readAllText(const fs::path& path)
 static SpriteManifest::Format parseFormat(const nlohmann::json& jFormat)
 {
     auto value = jFormat.get<std::string>();
-    if (value == "bmp")
+    if (value == "bmp" || value == "raw")
         return SpriteManifest::Format::bmp;
     else if (value == "rle")
         return SpriteManifest::Format::rle;
@@ -57,10 +57,24 @@ static SpriteManifest::Entry parseEntry(const nlohmann::json& jEntry)
         result.format = parseFormat(jEntry["format"]);
     if (jEntry.contains("palette"))
         result.palette = parsePalette(jEntry["palette"]);
-    if (jEntry.contains("x_offset"))
+    if (jEntry.contains("x"))
+        result.offsetX = jEntry["x"];
+    else if (jEntry.contains("x_offset"))
         result.offsetX = jEntry["x_offset"];
-    if (jEntry.contains("y_offset"))
+    if (jEntry.contains("y"))
+        result.offsetY = jEntry["y"];
+    else if (jEntry.contains("y_offset"))
         result.offsetY = jEntry["y_offset"];
+    else if (jEntry.contains("zoom"))
+        result.zoomOffset = jEntry["zoom"];
+    if (jEntry.contains("srcX"))
+        result.srcX = jEntry["srcX"];
+    if (jEntry.contains("srcY"))
+        result.srcY = jEntry["srcY"];
+    if (jEntry.contains("srcWidth"))
+        result.srcWidth = jEntry["srcWidth"];
+    if (jEntry.contains("srcHeight"))
+        result.srcHeight = jEntry["srcHeight"];
     return result;
 }
 

@@ -27,6 +27,11 @@ public:
         PaletteKind palette{};
         int32_t offsetX{};
         int32_t offsetY{};
+        int32_t zoomOffset{};
+        int32_t srcX{};
+        int32_t srcY{};
+        int32_t srcWidth{};
+        int32_t srcHeight{};
     };
 
     std::vector<Entry> entries;

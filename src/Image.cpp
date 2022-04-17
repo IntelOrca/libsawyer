@@ -104,13 +104,12 @@ Image Image::fromPng(Stream& stream)
                 }
 
                 // Get transparent index
-                png_byte* transparentIndex{};
-                int transparentCount{};
-                png_get_tRNS(pngPtr, infoPtr, &transparentIndex, &transparentCount, nullptr);
-                for (int i = 0; i < transparentCount; i++)
+                png_byte* alphaValues{};
+                int alphaCount{};
+                png_get_tRNS(pngPtr, infoPtr, &alphaValues, &alphaCount, nullptr);
+                for (int i = 0; i < alphaCount; i++)
                 {
-                    auto index = transparentIndex[i];
-                    img.palette->Colour[index].Alpha = 0;
+                    img.palette->Colour[i].Alpha = alphaValues[i];
                 }
 
                 auto dst = img.pixels.data();
@@ -263,4 +262,59 @@ void Image::toPng(Stream& stream) const
         png_destroy_write_struct(&pngPtr, nullptr);
         throw;
     }
+}
+
+Image Image::crop(int32_t cropX, int32_t cropY, uint32_t cropWidth, uint32_t cropHeight) const
+{
+    auto bytesPerPixel = depth / 8;
+
+    Image dstImage;
+    dstImage.depth = depth;
+    dstImage.width = cropWidth;
+    dstImage.height = cropHeight;
+    dstImage.stride = cropWidth * bytesPerPixel;
+    dstImage.palette = std::make_unique<Palette>(*palette);
+
+    dstImage.pixels.resize(dstImage.stride * dstImage.height);
+
+    const auto* src = pixels.data();
+    auto dst = dstImage.pixels.data();
+
+    size_t srcLineOffset{};
+    size_t dstLineOffset{};
+    auto copyWidth = cropWidth;
+    if (cropX < 0)
+    {
+        dstLineOffset = (-cropX) * bytesPerPixel;
+        copyWidth += cropX;
+    }
+    else
+    {
+        srcLineOffset = cropX * bytesPerPixel;
+    }
+    copyWidth = std::min(copyWidth, width);
+    size_t lineCopyLength = copyWidth * bytesPerPixel;
+
+    auto copyHeight = cropHeight;
+    if (cropY < 0)
+    {
+        dst += -cropY * stride;
+        copyHeight += cropY;
+    }
+    else
+    {
+        src += cropY * stride;
+    }
+    copyHeight = std::min(copyHeight, height);
+
+    for (uint32_t y = 0; y < copyHeight; y++)
+    {
+        auto srcLine = src + srcLineOffset;
+        auto dstLine = dst + dstLineOffset;
+        std::memcpy(dstLine, srcLine, lineCopyLength);
+
+        src += stride;
+        dst += dstImage.stride;
+    }
+    return dstImage;
 }

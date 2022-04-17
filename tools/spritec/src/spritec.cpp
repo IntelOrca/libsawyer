@@ -118,6 +118,13 @@ int runBuild(const CommandLineOptions& options)
             FileStream fs(manifestEntry.path, StreamFlags::read);
             auto img = Image::fromPng(fs);
 
+            if (manifestEntry.srcWidth != 0 || manifestEntry.srcHeight != 0)
+            {
+                if (manifestEntry.srcWidth <= 0 || manifestEntry.srcHeight <= 0)
+                    throw std::runtime_error("srcWidth and srcHeight must be > 0");
+                img = img.crop(manifestEntry.srcX, manifestEntry.srcY, manifestEntry.srcWidth, manifestEntry.srcHeight);
+            }
+
             if (manifestEntry.palette == SpriteManifest::PaletteKind::keep)
             {
                 if (img.depth != 8)
@@ -269,19 +276,19 @@ static std::string buildManifest(const SpriteArchive& archive)
 
         if (entry.offsetX != 0)
         {
-            sb.append("        \"x_offset\": ");
+            sb.append("        \"x\": ");
             sb.append(std::to_string(entry.offsetX));
             sb.append(",\n");
         }
         if (entry.offsetY != 0)
         {
-            sb.append("        \"y_offset\": ");
+            sb.append("        \"y\": ");
             sb.append(std::to_string(entry.offsetY));
             sb.append(",\n");
         }
         if ((entry.flags & GxFlags::hasZoom) && entry.zoomOffset != 0)
         {
-            sb.append("        \"zoomOffset\": ");
+            sb.append("        \"zoom\": ");
             sb.append(std::to_string(entry.zoomOffset));
             sb.append(",\n");
         }

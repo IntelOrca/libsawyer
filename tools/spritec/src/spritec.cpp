@@ -100,8 +100,13 @@ static std::optional<SpriteArchive> readGxFileOrError(std::string_view path)
 int runBuild(const CommandLineOptions& options)
 {
     auto manifest = SpriteManifest::fromFile(fs::path(options.manifestPath));
+    auto outputPath = fs::path(options.path);
 
     SpriteArchive archive;
+
+    // Check we can write to the ouput path first
+    archive.writeToFile(outputPath);
+
     for (auto& manifestEntry : manifest.entries)
     {
         if (!options.quiet)
@@ -113,18 +118,46 @@ int runBuild(const CommandLineOptions& options)
             FileStream fs(manifestEntry.path, StreamFlags::read);
             auto img = Image::fromPng(fs);
 
+            if (manifestEntry.palette == SpriteManifest::PaletteKind::keep)
+            {
+                if (img.depth != 8)
+                    throw std::runtime_error("Expected image depth to be 8");
+            }
+            else
+            {
+                ImageConverter converter;
+                img = converter.convertTo8bpp(img, ImageConverter::ConvertMode::Default);
+            }
+
             if (img.stride != img.width)
                 throw std::runtime_error("Expected image stride to be the image width");
-            auto imgData = reinterpret_cast<std::byte*>(img.pixels.data());
-            auto imgSize = img.pixels.size();
 
             SpriteArchive::Entry entry;
             entry.width = img.width;
             entry.height = img.height;
             entry.offsetX = manifestEntry.offsetX;
             entry.offsetY = manifestEntry.offsetY;
+
+            if (manifestEntry.format == SpriteManifest::Format::automatic || manifestEntry.format == SpriteManifest::Format::rle)
+            {
+                ImageBuffer8 imageBuffer;
+                imageBuffer.width = img.width;
+                imageBuffer.height = img.height;
+                imageBuffer.data = img.pixels.data();
+
+                GxEncoder encoder;
+                if (manifestEntry.format == SpriteManifest::Format::rle || encoder.isWorthUsingRle(imageBuffer))
+                {
+                    MemoryStream ms;
+                    encoder.encodeRle(imageBuffer, ms);
+                    entry.flags = GxFlags::bmp | GxFlags::rle;
+                    archive.addEntry(entry, stdx::span<const std::byte>(reinterpret_cast<std::byte*>(ms.data()), ms.getLength()));
+                    continue;
+                }
+            }
+
             entry.flags = GxFlags::bmp;
-            archive.addEntry(entry, stdx::span<const std::byte>(imgData, imgSize));
+            archive.addEntry(entry, stdx::span<const std::byte>(reinterpret_cast<std::byte*>(img.pixels.data()), img.pixels.size()));
         }
         catch (const std::exception&)
         {
@@ -132,6 +165,7 @@ int runBuild(const CommandLineOptions& options)
             throw;
         }
     }
+    archive.writeToFile(outputPath);
     return 0;
 }
 

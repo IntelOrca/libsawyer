@@ -159,14 +159,14 @@ void GxEncoder::encodeRle(const ImageBuffer8& input, Stream& stream)
                 {
                     pushRun(stream, currentCode);
                 }
-                currentCode.OffsetX++;
             }
             else
             {
                 // Not transparent
                 if (currentCode.NumPixels == 0)
                 {
-                    currentCode.Pixels = src--;
+                    currentCode.OffsetX = x;
+                    currentCode.Pixels = src - 1;
                 }
                 currentCode.NumPixels++;
             }
@@ -205,9 +205,8 @@ Image ImageConverter::convertTo8bpp(const Image& srcImage, ConvertMode mode)
     {
         for (uint32_t x = 0; x < srcImage.width; x++)
         {
-            calculatePaletteIndex(mode, src, x, y, srcImage.width, srcImage.height);
+            *dst++ = calculatePaletteIndex(mode, src, x, y, srcImage.width, srcImage.height);
             src += 4;
-            dst++;
         }
     }
 
@@ -264,9 +263,12 @@ std::unique_ptr<int16_t[]> ImageConverter::createWorkBuffer(const Image& srcImag
 
 PaletteIndex ImageConverter::calculatePaletteIndex(ConvertMode mode, int16_t* rgbaSrc, uint32_t x, uint32_t y, uint32_t width, uint32_t height)
 {
+    if (isTransparentPixel(rgbaSrc))
+        return TransparentIndex;
+
     const auto& palette = GetStandardPalette();
     auto paletteIndex = getPaletteIndex(palette, rgbaSrc);
-    if (!isInPalette(palette, rgbaSrc))
+    if (mode != ConvertMode::Default && paletteIndex == TransparentIndex)
     {
         if (mode == ConvertMode::Dithering)
         {

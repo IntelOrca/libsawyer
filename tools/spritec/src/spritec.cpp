@@ -1,6 +1,7 @@
 #include "spritec.h"
 #include "CommandLine.h"
 #include "SpriteArchive.h"
+#include "SpriteManifest.h"
 #include <cstdio>
 #include <iostream>
 #include <optional>
@@ -94,6 +95,44 @@ static std::optional<SpriteArchive> readGxFileOrError(std::string_view path)
         std::fprintf(stderr, "Unable to read gx file: %s\n", e.what());
         return {};
     }
+}
+
+int runBuild(const CommandLineOptions& options)
+{
+    auto manifest = SpriteManifest::fromFile(fs::path(options.manifestPath));
+
+    SpriteArchive archive;
+    for (auto& manifestEntry : manifest.entries)
+    {
+        if (!options.quiet)
+        {
+            std::cout << "Adding " << manifestEntry.path << std::endl;
+        }
+        try
+        {
+            FileStream fs(manifestEntry.path, StreamFlags::read);
+            auto img = Image::fromPng(fs);
+
+            if (img.stride != img.width)
+                throw std::runtime_error("Expected image stride to be the image width");
+            auto imgData = reinterpret_cast<std::byte*>(img.pixels.data());
+            auto imgSize = img.pixels.size();
+
+            SpriteArchive::Entry entry;
+            entry.width = img.width;
+            entry.height = img.height;
+            entry.offsetX = manifestEntry.offsetX;
+            entry.offsetY = manifestEntry.offsetY;
+            entry.flags = GxFlags::bmp;
+            archive.addEntry(entry, stdx::span<const std::byte>(imgData, imgSize));
+        }
+        catch (const std::exception&)
+        {
+            std::cerr << "Failed to build " << manifestEntry.path << std::endl;
+            throw;
+        }
+    }
+    return 0;
 }
 
 int runDetails(const CommandLineOptions& options)
@@ -258,7 +297,7 @@ static void exportImage(const GxEntry& entry, const Palette& palette, const fs::
     }
 
     FileStream pngfs(imageFilename, StreamFlags::write);
-    image.WriteToPng(pngfs);
+    image.toPng(pngfs);
 }
 
 int runExport(const CommandLineOptions& options)
@@ -354,7 +393,13 @@ std::optional<CommandLineOptions> parseCommandLine(int argc, const char** argv)
     else
     {
         auto firstArg = parser.getArg(0);
-        if (firstArg == "details")
+        if (firstArg == "build")
+        {
+            options.action = CommandLineAction::build;
+            options.path = parser.getArg(1);
+            options.manifestPath = parser.getArg(2);
+        }
+        else if (firstArg == "details")
         {
             options.action = CommandLineAction::details;
             options.path = parser.getArg(1);
@@ -428,6 +473,9 @@ int main(int argc, const char** argv)
 
         switch (options->action)
         {
+            case CommandLineAction::build:
+                runBuild(*options);
+                break;
             case CommandLineAction::details:
                 runDetails(*options);
                 break;

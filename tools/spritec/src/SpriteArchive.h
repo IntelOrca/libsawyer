@@ -30,7 +30,7 @@ namespace spritec
         stdx::span<const std::byte> getEntryData(uint32_t index) const;
         GxEntry getGx(uint32_t index) const;
 
-        void addEntry(const Entry& entry);
+        void addEntry(const Entry& entry, stdx::span<const std::byte> data);
         void removeEntry(uint32_t index);
         void writeToFile(const fs::path& path);
 

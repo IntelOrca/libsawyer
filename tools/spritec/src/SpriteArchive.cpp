@@ -102,6 +102,16 @@ GxEntry SpriteArchive::getGx(uint32_t index) const
     return gx;
 }
 
+void SpriteArchive::addEntry(const Entry& entry, stdx::span<const std::byte> data)
+{
+    _entries.push_back(entry);
+
+    auto& newEntry = _entries.back();
+    newEntry.dataOffset = static_cast<uint32_t>(_data.size());
+    newEntry.dataLength = static_cast<uint32_t>(data.size());
+    _data.insert(_data.end(), data.begin(), data.end());
+}
+
 void SpriteArchive::writeToFile(const fs::path& path)
 {
     FileStream fs(path, StreamFlags::write);

@@ -13,6 +13,12 @@ static void PngError(png_structp, const char* b)
 {
 }
 
+static void PngReadData(png_structp png_ptr, png_bytep data, png_size_t length)
+{
+    auto stream = static_cast<Stream*>(png_get_io_ptr(png_ptr));
+    stream->read(data, length);
+}
+
 static void PngWriteData(png_structp png_ptr, png_bytep data, png_size_t length)
 {
     auto stream = static_cast<Stream*>(png_get_io_ptr(png_ptr));
@@ -23,7 +29,155 @@ static void PngFlush(png_structp png_ptr)
 {
 }
 
-void Image::WriteToPng(Stream& stream) const
+Image Image::fromPng(Stream& stream)
+{
+    png_structp pngPtr;
+    png_infop infoPtr;
+
+    try
+    {
+        pngPtr = png_create_read_struct(PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
+        if (pngPtr == nullptr)
+        {
+            throw std::runtime_error("png_create_read_struct failed.");
+        }
+
+        infoPtr = png_create_info_struct(pngPtr);
+        if (infoPtr == nullptr)
+        {
+            throw std::runtime_error("png_create_info_struct failed.");
+        }
+
+        // Set error handling
+        if (setjmp(png_jmpbuf(pngPtr)))
+        {
+            throw std::runtime_error("png error.");
+        }
+
+        // Setup PNG reading
+        int sig_read = 0;
+        png_set_read_fn(pngPtr, &stream, PngReadData);
+        png_set_sig_bytes(pngPtr, sig_read);
+
+        uint32_t readFlags = PNG_TRANSFORM_STRIP_16 | PNG_TRANSFORM_PACKING;
+        png_read_png(pngPtr, infoPtr, readFlags, nullptr);
+
+        // Read header
+        png_uint_32 pngWidth, pngHeight;
+        int bitDepth, colourType, interlaceType;
+        png_get_IHDR(pngPtr, infoPtr, &pngWidth, &pngHeight, &bitDepth, &colourType, &interlaceType, nullptr, nullptr);
+
+        // Read pixels as 32bpp RGBA data
+        auto rowBytes = png_get_rowbytes(pngPtr, infoPtr);
+        auto rowPointers = png_get_rows(pngPtr, infoPtr);
+
+        Image img;
+        img.width = pngWidth;
+        img.height = pngHeight;
+        switch (colourType)
+        {
+            case PNG_COLOR_TYPE_PALETTE:
+            {
+                // 8-bit paletted or greyscale
+                if (rowBytes != pngWidth)
+                    throw std::runtime_error("Unexpected row size");
+
+                img.depth = 8;
+                img.stride = pngWidth;
+                img.pixels = std::vector<uint8_t>(img.stride * pngHeight);
+
+                // Get palette
+                png_colorp pngPalette{};
+                int paletteSize{};
+                png_get_PLTE(pngPtr, infoPtr, &pngPalette, &paletteSize);
+
+                img.palette = std::make_unique<Palette>();
+                auto colours = img.palette->Colour;
+                for (auto i = 0; i < paletteSize; i++)
+                {
+                    auto& src = pngPalette[i];
+                    auto& dst = colours[i];
+                    dst.Red = src.red;
+                    dst.Green = src.green;
+                    dst.Blue = src.blue;
+                    dst.Alpha = 255;
+                }
+
+                // Get transparent index
+                png_byte* transparentIndex{};
+                int transparentCount{};
+                png_get_tRNS(pngPtr, infoPtr, &transparentIndex, &transparentCount, nullptr);
+                for (int i = 0; i < transparentCount; i++)
+                {
+                    auto index = transparentIndex[i];
+                    img.palette->Colour[index].Alpha = 0;
+                }
+
+                auto dst = img.pixels.data();
+                for (png_uint_32 i = 0; i < pngHeight; i++)
+                {
+                    std::copy_n(rowPointers[i], rowBytes, dst);
+                    dst += rowBytes;
+                }
+                break;
+            }
+            case PNG_COLOR_TYPE_RGB:
+            {
+                // 24-bit PNG (no alpha)
+                if (rowBytes != pngWidth * 3)
+                    throw std::runtime_error("Unexpected row size");
+
+                img.depth = 24;
+                img.stride = pngWidth * 3;
+                img.pixels = std::vector<uint8_t>(img.stride * pngHeight);
+
+                auto dst = img.pixels.data();
+                for (png_uint_32 i = 0; i < pngHeight; i++)
+                {
+                    auto src = rowPointers[i];
+                    for (png_uint_32 x = 0; x < pngWidth; x++)
+                    {
+                        *dst++ = *src++;
+                        *dst++ = *src++;
+                        *dst++ = *src++;
+                    }
+                }
+                break;
+            }
+            case PNG_COLOR_TYPE_RGBA:
+            {
+                // 32-bit PNG (with alpha)
+                if (rowBytes != pngWidth * 4)
+                    throw std::runtime_error("Unexpected row size");
+
+                img.depth = 32;
+                img.stride = pngWidth * 4;
+                img.pixels = std::vector<uint8_t>(img.stride * pngHeight);
+
+                auto dst = img.pixels.data();
+                for (png_uint_32 i = 0; i < pngHeight; i++)
+                {
+                    std::copy_n(rowPointers[i], rowBytes, dst);
+                    dst += rowBytes;
+                }
+                break;
+            }
+        }
+
+        // Close the PNG
+        png_destroy_read_struct(&pngPtr, &infoPtr, nullptr);
+
+        // Return the output data
+        return img;
+    }
+    catch (const std::exception&)
+    {
+        png_destroy_read_struct(&pngPtr, &infoPtr, nullptr);
+        throw;
+    }
+}
+
+void Image::toPng(Stream& stream) const
 {
     png_structp pngPtr{};
     png_colorp pngPalette{};

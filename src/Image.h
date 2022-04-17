@@ -22,6 +22,7 @@ namespace cs
         std::unique_ptr<Palette> palette;
         uint32_t stride{};
 
-        void WriteToPng(Stream& stream) const;
+        static Image fromPng(Stream& stream);
+        void toPng(Stream& stream) const;
     };
 }

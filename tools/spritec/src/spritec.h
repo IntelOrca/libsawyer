@@ -15,6 +15,7 @@ namespace spritec
 
     enum class CommandLineAction
     {
+        build,
         details,
         list,
         exportSingle,
@@ -28,6 +29,7 @@ namespace spritec
         CommandLineAction action;
         std::string path;
         std::string outputPath;
+        std::string manifestPath;
         std::optional<int32_t> idx;
         bool quiet{};
     };

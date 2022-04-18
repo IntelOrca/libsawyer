@@ -22,6 +22,7 @@ namespace spritec
         list,
         exportSingle,
         exportAll,
+        upgrade,
         help,
         version,
     };
@@ -34,6 +35,8 @@ namespace spritec
         std::string manifestPath;
         std::optional<int32_t> idx;
         std::string mode;
+        std::string csgHeaderPath;
+        std::string csgDataPath;
         bool quiet{};
     };
 }

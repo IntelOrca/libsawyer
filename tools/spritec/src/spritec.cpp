@@ -408,6 +408,33 @@ int runExportAll(const CommandLineOptions& options)
     }
 }
 
+std::vector<std::byte> readAllBytes(const fs::path& path)
+{
+    std::vector<std::byte> result;
+    FileStream fs(path, StreamFlags::read);
+    auto len = fs.getLength();
+    result.resize(len);
+    fs.read(result.data(), len);
+    return result;
+}
+
+static int runUpgrade(const CommandLineOptions& options)
+{
+    auto header = readAllBytes(fs::u8path(options.csgHeaderPath));
+    auto data = readAllBytes(fs::u8path(options.csgDataPath));
+
+    GxHeader gxHeader;
+    gxHeader.numEntries = static_cast<uint32_t>(header.size() / 16);
+    gxHeader.dataSize = static_cast<uint32_t>(data.size());
+
+    FileStream fs(fs::u8path(options.path), StreamFlags::write);
+    fs.write(&gxHeader.numEntries, sizeof(gxHeader.numEntries));
+    fs.write(&gxHeader.dataSize, sizeof(gxHeader.dataSize));
+    fs.write(header.data(), header.size());
+    fs.write(data.data(), data.size());
+    return 0;
+}
+
 std::optional<CommandLineOptions> parseCommandLine(int argc, const char** argv)
 {
     auto parser = CommandLineParser(argc, argv)
@@ -463,6 +490,13 @@ std::optional<CommandLineOptions> parseCommandLine(int argc, const char** argv)
             options.path = parser.getArg(1);
             options.outputPath = parser.getArg(2);
         }
+        else if (firstArg == "upgrade")
+        {
+            options.action = CommandLineAction::upgrade;
+            options.path = parser.getArg(1);
+            options.csgHeaderPath = parser.getArg(2);
+            options.csgDataPath = parser.getArg(3);
+        }
         else
         {
             options.action = CommandLineAction::help;
@@ -494,8 +528,9 @@ static void printHelp()
     std::cout << "               list      <gx_file>" << std::endl;
     std::cout << "               export    <gx_file> [idx] <output_file>" << std::endl;
     std::cout << "               exportall <gx_file> <output_directory>" << std::endl;
+    std::cout << "               upgrade   <gx_file> <csg1i.dat> <csg1.1>" << std::endl;
     std::cout << "options:" << std::endl;
-    std::cout << "           -m <mode>  Image conversion mode. Can be: default, closest, or dithering" << std::endl;
+    std::cout << "           -m <mode>  Image conversion mode (default, closest, or dithering)" << std::endl;
     std::cout << "           -q         Quiet" << std::endl;
     std::cout << "--help     -h         Print help" << std::endl;
     std::cout << "--version             Print version" << std::endl;
@@ -527,6 +562,9 @@ int main(int argc, const char** argv)
                 break;
             case CommandLineAction::exportAll:
                 runExportAll(*options);
+                break;
+            case CommandLineAction::upgrade:
+                runUpgrade(*options);
                 break;
             default:
                 printHelp();

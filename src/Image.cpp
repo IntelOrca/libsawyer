@@ -1,10 +1,14 @@
 #include "Image.h"
 #include "Stream.h"
-#include <png.h>
 #include <stdexcept>
+
+#ifdef CS_ENABLE_LIBPNG
+#include <png.h>
+#endif
 
 using namespace cs;
 
+#ifdef CS_ENABLE_LIBPNG
 static void PngWarning(png_structp, const char* b)
 {
 }
@@ -28,9 +32,11 @@ static void PngWriteData(png_structp png_ptr, png_bytep data, png_size_t length)
 static void PngFlush(png_structp png_ptr)
 {
 }
+#endif
 
 Image Image::fromPng(Stream& stream)
 {
+#ifdef CS_ENABLE_LIBPNG
     png_structp pngPtr;
     png_infop infoPtr;
 
@@ -174,10 +180,14 @@ Image Image::fromPng(Stream& stream)
         png_destroy_read_struct(&pngPtr, &infoPtr, nullptr);
         throw;
     }
+#else
+    throw std::runtime_error("libpng not available");
+#endif
 }
 
 void Image::toPng(Stream& stream) const
 {
+#ifdef CS_ENABLE_LIBPNG
     png_structp pngPtr{};
     png_colorp pngPalette{};
     try
@@ -262,6 +272,9 @@ void Image::toPng(Stream& stream) const
         png_destroy_write_struct(&pngPtr, nullptr);
         throw;
     }
+#else
+    throw std::runtime_error("libpng not available");
+#endif
 }
 
 Image Image::crop(int32_t cropX, int32_t cropY, uint32_t cropWidth, uint32_t cropHeight) const

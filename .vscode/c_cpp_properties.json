@@ -12,6 +12,7 @@
                 "_UNICODE",
                 "CS_ENABLE_BREAKPAD",
                 "CS_ENABLE_DISCORD_RPC",
+                "CS_ENABLE_LIBPNG",
                 "CS_ENABLE_SCRIPTING"
             ],
             "windowsSdkVersion": "10.0.17763.0",

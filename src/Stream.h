@@ -85,6 +85,21 @@ namespace cs
         void setPosition(uint64_t position) override;
         void read(void* buffer, size_t len) override;
         void write(const void* buffer, size_t len) override;
+
+        static std::vector<std::byte> readAllBytes(const fs::path& path);
+        static void writeAllBytes(const fs::path& path, const void* data, size_t len);
+        static std::string readAllText(const fs::path& path);
+
+        template<typename T>
+        static void writeAllBytes(const fs::path& path, stdx::span<T> data)
+        {
+            writeAllBytes(path, data.data(), data.size_bytes());
+        }
+
+        static void FileStream::writeAllText(const fs::path& path, std::string_view s)
+        {
+            writeAllBytes(path, s.data(), s.size());
+        }
     };
 
     class BinaryReader final

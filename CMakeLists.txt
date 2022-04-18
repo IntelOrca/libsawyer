@@ -101,6 +101,7 @@ endif ()
 
 if (ENABLE_LIBPNG)
     find_package(libpng CONFIG REQUIRED)
+    target_compile_definitions(sawyer PRIVATE CS_ENABLE_LIBPNG)
     target_link_libraries(sawyer PRIVATE png)
 endif ()
 

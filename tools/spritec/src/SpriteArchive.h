@@ -1,8 +1,8 @@
 #pragma once
 
-#include "external.h"
 #include <cstddef>
 #include <sawyer/FileSystem.hpp>
+#include <sawyer/Gx.h>
 #include <sawyer/Span.hpp>
 
 using namespace cs;
@@ -33,7 +33,6 @@ namespace spritec
         GxEntry getGx(uint32_t index) const;
 
         void addEntry(const Entry& entry, stdx::span<const std::byte> data);
-        void removeEntry(uint32_t index);
         void writeToFile(const fs::path& path);
 
     private:

@@ -2,17 +2,13 @@
 
 #pragma once
 
+#include "Stream.h"
 #include <cstdint>
 #include <cstdlib>
-#include <sawyer/Image.h>
-#include <sawyer/Palette.h>
-#include <sawyer/Stream.h>
 #include <tuple>
 
 namespace cs
 {
-    typedef uint8_t PaletteIndex;
-
     namespace GxFlags
     {
         constexpr uint16_t bmp = 1 << 0;       // Image data is encoded as raw pixels
@@ -48,16 +44,19 @@ namespace cs
         size_t calculateDataSize() const;
         bool validateData(size_t bufferLen) const;
         std::pair<bool, size_t> calculateDataSize(size_t bufferLen) const;
+        void convertToBmp(Stream& stream) const;
+        void convertToBmp(void* dst) const;
 
     private:
         std::pair<bool, size_t> calculateRleSize(size_t bufferLen) const;
+        void convertRleToBmp(void* dst) const;
     };
 
     struct ImageBuffer8
     {
         uint16_t width{};
         uint16_t height{};
-        uint8_t* data{};
+        const uint8_t* data{};
     };
 
     class GxEncoder
@@ -76,42 +75,5 @@ namespace cs
 
     private:
         void pushRun(Stream& stream, RLECode& currentCode);
-    };
-
-    class ImageConverter
-    {
-    private:
-        static constexpr PaletteIndex TransparentIndex = 0;
-
-    public:
-        enum class ConvertMode
-        {
-            Default,
-            Closest,
-            Dithering,
-        };
-
-        enum class PaletteIndexType : uint8_t
-        {
-            normal,
-            primaryRemap,
-            secondaryRemap,
-            tertiaryRemap,
-            special,
-        };
-
-        Image convertTo8bpp(const Image& src, ConvertMode mode);
-
-    private:
-        static std::unique_ptr<int16_t[]> createWorkBuffer(const Image& srcImage);
-
-        static PaletteIndex calculatePaletteIndex(ConvertMode mode, int16_t* rgbaSrc, uint32_t x, uint32_t y, uint32_t width, uint32_t height);
-        static PaletteIndex dither(const Palette& palette, int16_t* rgbaSrc, uint32_t x, uint32_t y, uint32_t width, uint32_t height);
-        static bool isInPalette(const Palette& palette, int16_t* colour);
-        static PaletteIndex getPaletteIndex(const Palette& palette, int16_t* colour);
-        static bool isTransparentPixel(const int16_t* colour);
-        static PaletteIndex getClosestPaletteIndex(const Palette& palette, const int16_t* colour);
-        static bool isChangablePixel(PaletteIndex paletteIndex);
-        static PaletteIndexType getPaletteIndexType(PaletteIndex paletteIndex);
     };
 }

@@ -5,6 +5,8 @@
 
 namespace cs
 {
+    typedef uint8_t PaletteIndex;
+
     struct PaletteBGRA
     {
         uint8_t Blue{};

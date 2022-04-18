@@ -1,34 +1,10 @@
 #include "SpriteManifest.h"
 #include "SpriteArchive.h"
-#include "external.h"
 #include <nlohmann/json.hpp>
 #include <sawyer/Stream.h>
 
 using namespace cs;
 using namespace spritec;
-
-std::string readAllText(const fs::path& path)
-{
-    std::string result;
-
-    FileStream fs(path, StreamFlags::read);
-    if (fs.getLength() >= 3)
-    {
-        // Read BOM
-        uint8_t bom[3]{};
-        fs.read(bom, sizeof(bom));
-        if (!(bom[0] == 0xEF && bom[1] == 0xBB && bom[2] == 0xBF))
-        {
-            result.append(reinterpret_cast<char*>(bom), sizeof(bom));
-        }
-    }
-
-    auto remainingLen = fs.getLength() - fs.getPosition();
-    auto start = result.size();
-    result.resize(start + remainingLen);
-    fs.read(result.data() + start, remainingLen);
-    return result;
-}
 
 static SpriteManifest::Format parseFormat(const nlohmann::json& jFormat)
 {
@@ -92,7 +68,7 @@ SpriteManifest SpriteManifest::fromFile(const fs::path& path)
 {
     auto workingDirectory = path.parent_path();
 
-    auto text = readAllText(path);
+    auto text = FileStream::readAllText(path);
     auto jRoot = nlohmann::json::parse(text);
     if (jRoot.is_array())
     {

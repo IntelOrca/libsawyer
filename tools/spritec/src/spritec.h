@@ -1,6 +1,7 @@
 #pragma once
 
 #include <optional>
+#include <sawyer/Palette.h>
 #include <string>
 
 namespace spritec
@@ -39,4 +40,6 @@ namespace spritec
         std::string csgDataPath;
         bool quiet{};
     };
+
+    const cs::Palette& GetStandardPalette();
 }

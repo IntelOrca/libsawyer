@@ -6,6 +6,7 @@
 #include <optional>
 #include <sawyer/CommandLine.h>
 #include <sawyer/Image.h>
+#include <sawyer/ImageConverter.h>
 #include <sawyer/Palette.h>
 #include <sawyer/SawyerStream.h>
 #include <sawyer/Stream.h>
@@ -14,42 +15,6 @@
 
 using namespace cs;
 using namespace spritec;
-
-const Palette& GetStandardPalette();
-
-static void convertRleToBmp(const GxEntry& entry, void* dst)
-{
-    assert(entry.flags & GxFlags::rle);
-
-    auto startAddress = static_cast<const uint8_t*>(entry.offset);
-    auto dst8 = static_cast<uint8_t*>(dst);
-    for (int32_t y = 0; y < entry.height; y++)
-    {
-        // Set source pointer to the start of the row
-        auto rowOffset8 = startAddress + (y * 2);
-        uint16_t rowOffset = rowOffset8[0] | (rowOffset8[1] << 8);
-        auto src8 = startAddress + rowOffset;
-
-        // Read row offset
-        int32_t x = 0;
-        auto endOfRow = false;
-        do
-        {
-            // Get run length, end flag and x position
-            auto code = *src8++;
-            auto len = code & GxRleRowLengthMask;
-            endOfRow = (code & GxRleRowEndFlag) != 0;
-            x = *src8++;
-
-            // Copy pixel run to destination buffer
-            std::memcpy(dst8 + x, src8, len);
-            src8 += len;
-        } while (!endOfRow);
-
-        // Move destination pointer to next row
-        dst8 += entry.width;
-    }
-}
 
 static void convertPaletteToBmp(const GxEntry& entry, void* dst)
 {
@@ -63,6 +28,34 @@ static void convertPaletteToBmp(const GxEntry& entry, void* dst)
         dst8[3] = 0xFF;
         src8 += 3;
         dst8 += 4;
+    }
+}
+
+static void encodePalette(Stream& stream, const Image& image)
+{
+    const auto* src = image.pixels.data();
+    for (uint32_t x = 0; x < image.width; x++)
+    {
+        PaletteBGRA colour;
+        if (image.depth == 8)
+        {
+            colour = image.palette->Colour[*src++];
+        }
+        else if (image.depth == 24)
+        {
+            colour.Red = *src++;
+            colour.Green = *src++;
+            colour.Blue = *src++;
+            colour.Alpha = 255;
+        }
+        else if (image.depth == 32)
+        {
+            colour.Red = *src++;
+            colour.Green = *src++;
+            colour.Blue = *src++;
+            colour.Alpha = *src++;
+        }
+        stream.write(&colour, 3);
     }
 }
 
@@ -107,34 +100,6 @@ static ImageConverter::ConvertMode parseConvertMode(std::string_view s)
         return ImageConverter::ConvertMode::Dithering;
     else
         throw std::runtime_error("Unknown or unsupported convert mode");
-}
-
-static void encodePalette(Stream& stream, const Image& image)
-{
-    const auto* src = image.pixels.data();
-    for (uint32_t x = 0; x < image.width; x++)
-    {
-        PaletteBGRA colour;
-        if (image.depth == 8)
-        {
-            colour = image.palette->Colour[*src++];
-        }
-        else if (image.depth == 24)
-        {
-            colour.Red = *src++;
-            colour.Green = *src++;
-            colour.Blue = *src++;
-            colour.Alpha = 255;
-        }
-        else if (image.depth == 32)
-        {
-            colour.Red = *src++;
-            colour.Green = *src++;
-            colour.Blue = *src++;
-            colour.Alpha = *src++;
-        }
-        stream.write(&colour, 3);
-    }
 }
 
 int runBuild(const CommandLineOptions& options)
@@ -189,7 +154,7 @@ int runBuild(const CommandLineOptions& options)
                 else
                 {
                     ImageConverter converter;
-                    img = converter.convertTo8bpp(img, convertMode);
+                    img = converter.convertTo8bpp(img, convertMode, GetStandardPalette());
                 }
 
                 if (img.stride != img.width)
@@ -233,7 +198,7 @@ int runBuild(const CommandLineOptions& options)
     return 0;
 }
 
-int runDetails(const CommandLineOptions& options)
+static int runDetails(const CommandLineOptions& options)
 {
     auto archive = readGxFileOrError(options.path);
     if (!archive)
@@ -279,7 +244,7 @@ int runDetails(const CommandLineOptions& options)
     }
 }
 
-int runList(const CommandLineOptions& options)
+static int runList(const CommandLineOptions& options)
 {
     auto archive = readGxFileOrError(options.path);
     if (!archive)
@@ -301,8 +266,7 @@ int runList(const CommandLineOptions& options)
 static void exportManifest(const SpriteArchive& archive, const fs::path& manifestPath)
 {
     auto manifest = SpriteManifest::buildManifest(archive);
-    FileStream fs(manifestPath, StreamFlags::write);
-    fs.write(manifest.data(), manifest.size());
+    FileStream::writeAllText(manifestPath, manifest);
 }
 
 static void exportImage(const GxEntry& entry, const Palette& palette, const fs::path& imageFilename)
@@ -325,21 +289,14 @@ static void exportImage(const GxEntry& entry, const Palette& palette, const fs::
         image.depth = 8;
         image.pixels = std::vector<uint8_t>(entry.width * entry.height);
         image.stride = entry.width;
-        if (entry.flags & GxFlags::rle)
-        {
-            convertRleToBmp(entry, image.pixels.data());
-        }
-        else
-        {
-            std::memcpy(image.pixels.data(), entry.offset, image.pixels.size());
-        }
+        entry.convertToBmp(image.pixels.data());
     }
 
     FileStream pngfs(imageFilename, StreamFlags::write);
     image.toPng(pngfs);
 }
 
-int runExport(const CommandLineOptions& options)
+static int runExport(const CommandLineOptions& options)
 {
     auto archive = readGxFileOrError(options.path);
     if (!archive)
@@ -370,7 +327,7 @@ int runExport(const CommandLineOptions& options)
     }
 }
 
-int runExportAll(const CommandLineOptions& options)
+static int runExportAll(const CommandLineOptions& options)
 {
     auto archive = readGxFileOrError(options.path);
     if (!archive)
@@ -408,20 +365,10 @@ int runExportAll(const CommandLineOptions& options)
     }
 }
 
-std::vector<std::byte> readAllBytes(const fs::path& path)
-{
-    std::vector<std::byte> result;
-    FileStream fs(path, StreamFlags::read);
-    auto len = fs.getLength();
-    result.resize(len);
-    fs.read(result.data(), len);
-    return result;
-}
-
 static int runUpgrade(const CommandLineOptions& options)
 {
-    auto header = readAllBytes(fs::u8path(options.csgHeaderPath));
-    auto data = readAllBytes(fs::u8path(options.csgDataPath));
+    auto header = FileStream::readAllBytes(fs::u8path(options.csgHeaderPath));
+    auto data = FileStream::readAllBytes(fs::u8path(options.csgDataPath));
 
     GxHeader gxHeader;
     gxHeader.numEntries = static_cast<uint32_t>(header.size() / 16);
@@ -435,7 +382,7 @@ static int runUpgrade(const CommandLineOptions& options)
     return 0;
 }
 
-std::optional<CommandLineOptions> parseCommandLine(int argc, const char** argv)
+static std::optional<CommandLineOptions> parseCommandLine(int argc, const char** argv)
 {
     auto parser = CommandLineParser(argc, argv)
                       .registerOption("-m", 1)

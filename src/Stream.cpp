@@ -179,6 +179,45 @@ void FileStream::write(const void* buffer, size_t len)
     }
 }
 
+std::vector<std::byte> FileStream::readAllBytes(const fs::path& path)
+{
+    std::vector<std::byte> result;
+    FileStream fs(path, StreamFlags::read);
+    auto len = fs.getLength();
+    result.resize(len);
+    fs.read(result.data(), len);
+    return result;
+}
+
+void FileStream::writeAllBytes(const fs::path& path, const void* data, size_t len)
+{
+    FileStream fs(path, StreamFlags::write);
+    fs.write(data, len);
+}
+
+std::string FileStream::readAllText(const fs::path& path)
+{
+    std::string result;
+
+    FileStream fs(path, StreamFlags::read);
+    if (fs.getLength() >= 3)
+    {
+        // Read BOM
+        uint8_t bom[3]{};
+        fs.read(bom, sizeof(bom));
+        if (!(bom[0] == 0xEF && bom[1] == 0xBB && bom[2] == 0xBF))
+        {
+            result.append(reinterpret_cast<char*>(bom), sizeof(bom));
+        }
+    }
+
+    auto remainingLen = fs.getLength() - fs.getPosition();
+    auto start = result.size();
+    result.resize(start + remainingLen);
+    fs.read(result.data() + start, remainingLen);
+    return result;
+}
+
 BinaryReader::BinaryReader(Stream& stream)
     : _stream(&stream)
 {

@@ -37,7 +37,7 @@ jobs:
 
       - name: Build spritec
         run: |
-          cd tools/fsaw
+          cd tools/spritec
           cmake -G Ninja -B bin
           cmake --build bin
 

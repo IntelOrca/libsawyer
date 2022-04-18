@@ -234,7 +234,7 @@ static int runDetails(const CommandLineOptions& options)
 
         auto gx = archive->getGx(idx);
         auto [valid, dataSize] = gx.calculateDataSize(entry.dataLength);
-        std::printf("    calculated data length: %lu (%s)\n", dataSize, valid ? "valid" : "invalid");
+        std::printf("    calculated data length: %llu (%s)\n", static_cast<long long unsigned int>(dataSize), valid ? "valid" : "invalid");
         return ExitCodes::ok;
     }
     else

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.15)
 
 # Do not allow building in root
 if (CMAKE_BINARY_DIR STREQUAL CMAKE_SOURCE_DIR)
@@ -44,6 +44,9 @@ set(CMAKE_CXX_STANDARD 17)
 file(GLOB_RECURSE SAWYER_SOURCES "src/*.cpp")
 file(GLOB_RECURSE SAWYER_HEADERS "src/*.h" "src/*.hpp")
 add_library(sawyer STATIC ${SAWYER_SOURCES})
+if (${VCPKG_TARGET_TRIPLET} MATCHES "-static$")
+    set_property(TARGET sawyer PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif ()
 
 # Breakpad
 if (ENABLE_BREAKPAD AND MSVC)
@@ -102,7 +105,6 @@ endif ()
 if (ENABLE_LIBPNG)
     find_package(libpng CONFIG REQUIRED)
     target_compile_definitions(sawyer PRIVATE CS_ENABLE_LIBPNG)
-    target_link_libraries(sawyer PRIVATE png)
 endif ()
 
 # Scripting

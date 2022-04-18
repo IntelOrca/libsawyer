@@ -1,5 +1,7 @@
 #include "Image.h"
 #include "Stream.h"
+#include <algorithm>
+#include <cstring>
 #include <stdexcept>
 
 #ifdef CS_ENABLE_LIBPNG

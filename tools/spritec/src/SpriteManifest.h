@@ -22,7 +22,7 @@ namespace spritec
 
         enum class PaletteKind
         {
-            default,
+            rct,
             keep,
         };
 

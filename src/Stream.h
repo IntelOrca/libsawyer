@@ -96,7 +96,7 @@ namespace cs
             writeAllBytes(path, data.data(), data.size_bytes());
         }
 
-        static void FileStream::writeAllText(const fs::path& path, std::string_view s)
+        static void writeAllText(const fs::path& path, std::string_view s)
         {
             writeAllBytes(path, s.data(), s.size());
         }

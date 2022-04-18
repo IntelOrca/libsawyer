@@ -1,5 +1,3 @@
-#pragma once
-
 #include "Stream.h"
 #include <cstring>
 #include <stdexcept>

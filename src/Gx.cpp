@@ -1,4 +1,5 @@
 #include "Gx.h"
+#include <cstring>
 #include <limits>
 #include <optional>
 

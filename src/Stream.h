@@ -40,6 +40,12 @@ namespace cs
         size_t _len{};
 
     public:
+        template<typename T>
+        BinaryStream(stdx::span<T> span)
+            : BinaryStream(span.data(), span.size_bytes())
+        {
+        }
+
         BinaryStream(const void* data, size_t len);
         uint64_t getLength() const override;
         uint64_t getPosition() const override;

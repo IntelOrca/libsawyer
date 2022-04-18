@@ -11,7 +11,7 @@ jobs:
     steps:
       - name: Prepare environment
         run: |
-          sudo apt-get install libgtest-dev ninja-build
+          sudo apt-get install libgtest-dev ninja-build libpng-dev nlohmann-json3-dev
 #         sudo apt-get install python2 python-yaml
 
       - name: Checkout
@@ -30,6 +30,12 @@ jobs:
           bin/tests
 
       - name: Build fsaw
+        run: |
+          cd tools/fsaw
+          cmake -G Ninja -B bin
+          cmake --build bin
+
+      - name: Build spritec
         run: |
           cd tools/fsaw
           cmake -G Ninja -B bin
@@ -88,6 +94,14 @@ jobs:
         run: |
           call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=${{ matrix.arch }}
           cd tools/fsaw
+          cmake -G Ninja -B bin -DCMAKE_BUILD_TYPE=Release
+          cmake --build bin
+
+      - name: Build spritec
+        shell: cmd
+        run: |
+          call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=${{ matrix.arch }}
+          cd tools/spritec
           cmake -G Ninja -B bin -DCMAKE_BUILD_TYPE=Release
           cmake --build bin
 

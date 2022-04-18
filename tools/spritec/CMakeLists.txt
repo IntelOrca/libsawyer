@@ -5,7 +5,9 @@ project(spritec CXX)
 find_package(sawyer REQUIRED PATHS ../../out/share)
 
 # libraries
-find_package(libpng CONFIG REQUIRED)
+if (MSVC)
+    find_package(libpng CONFIG REQUIRED)
+endif ()
 find_package(nlohmann_json CONFIG REQUIRED)
 
 set(CMAKE_CXX_STANDARD 17)

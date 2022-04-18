@@ -103,7 +103,10 @@ if (ENABLE_DISCORD_RPC)
 endif ()
 
 if (ENABLE_LIBPNG)
-    find_package(libpng CONFIG REQUIRED)
+    if (MSVC)
+        find_package(libpng CONFIG REQUIRED)
+    endif ()
+    target_link_libraries(sawyer PRIVATE png)
     target_compile_definitions(sawyer PRIVATE CS_ENABLE_LIBPNG)
 endif ()
 

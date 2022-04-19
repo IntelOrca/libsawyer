@@ -106,8 +106,13 @@ if (ENABLE_LIBPNG)
     if (MSVC)
         find_package(libpng CONFIG REQUIRED)
     endif ()
-    target_link_libraries(sawyer PRIVATE png)
     target_compile_definitions(sawyer PRIVATE CS_ENABLE_LIBPNG)
+
+    if (${VCPKG_TARGET_TRIPLET} MATCHES "-static$")
+        merge_static_libraries(sawyer $<TARGET_FILE:png_static>)
+    else ()
+        target_link_libraries(sawyer PRIVATE png)
+    endif ()
 endif ()
 
 # Scripting

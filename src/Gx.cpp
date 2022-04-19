@@ -86,7 +86,7 @@ std::pair<bool, size_t> GxEntry::calculateRleSize(size_t bufferLen) const
         } while (!endOfRow);
         bufferWasLargeEnough = endOfRow;
     }
-    return std::make_pair(bufferWasLargeEnough.value_or(false), bs.getPosition());
+    return std::make_pair(bufferWasLargeEnough.value_or(false), static_cast<size_t>(bs.getPosition()));
 }
 
 void GxEntry::convertToBmp(Stream& stream) const

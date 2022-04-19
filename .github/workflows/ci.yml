@@ -15,7 +15,7 @@ jobs:
 #         sudo apt-get install python2 python-yaml
 
       - name: Checkout
-        uses: actions/checkout@v1
+        uses: actions/checkout@v3
       - name: Build libsawyer
         run: |
           cmake -G Ninja -B bin -DCMAKE_BUILD_TYPE=Release
@@ -42,13 +42,21 @@ jobs:
           cmake --build bin
 
       - name: Upload zip as artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: libsawyer-linux-${{ matrix.platform }}.zip
           path: libsawyer-linux-${{ matrix.platform }}.zip
 
-  windows:
-    name: Windows
+      - name: Upload tools
+        uses: actions/upload-artifact@v3
+        with:
+          name: libsawyer-tools.zip
+          path: |
+            tools/fsaw/bin/fsaw
+            tools/spritec/bin/spritec
+
+  windows-shared:
+    name: "Windows[shared]"
     runs-on: windows-latest
     strategy:
       fail-fast: false
@@ -60,7 +68,7 @@ jobs:
           arch: amd64
     steps:
       - name: Checkout
-        uses: actions/checkout@v1
+        uses: actions/checkout@v3
 #     - uses: actions/setup-python@v2
 #       with:
 #         python-version: '2.x'
@@ -70,43 +78,100 @@ jobs:
 #         cd /D ${{ env.pythonLocation }}
 #         mklink python2.exe python.exe
 #         pip install PyYAML
+
+      - name: Cache vcpkg
+        uses: actions/cache@v3
+        env:
+          cache-name: cache-vcpkg
+        with:
+          path: C:/vcpkg
+          key: ${{ runner.os }}-build-${{ env.cache-name }}
+
       - name: Build libsawyer
         shell: cmd
         run: |
-          call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=${{ matrix.arch }}
+          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=${{ matrix.arch }}
           cmake -G Ninja -B bin -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=%VCPKG_INSTALLATION_ROOT%\scripts\buildsystems\vcpkg.cmake
           cmake --build bin
           cmake --install bin
           cd out
-          7z a -tzip -mx9 -mtc=off ..\libsawyer-${{ matrix.platform }}.zip *
+          7z a -tzip -mx9 -mtc=off ..\libsawyer-shared-${{ matrix.platform }}.zip *
 
       - name: Test libsawyer
         shell: cmd
         run: |
-          call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=${{ matrix.arch }}
+          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=${{ matrix.arch }}
           cmake --build bin --target tests
           cmake --build bin --target test_crash
           cd bin
           ctest
 
-      - name: Build fsaw
+      - name: Upload zip as artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: libsawyer-shared-${{ matrix.platform }}.zip
+          path: libsawyer-shared-${{ matrix.platform }}.zip
+
+  windows-static:
+    name: "Windows[static]"
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - platform: x86
+          arch: x86
+        - platform: x64
+          arch: amd64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Cache vcpkg
+        uses: actions/cache@v3
+        env:
+          cache-name: cache-vcpkg
+        with:
+          path: C:/vcpkg
+          key: ${{ runner.os }}-build-${{ env.cache-name }}
+      - name: Build libsawyer
         shell: cmd
         run: |
-          call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=${{ matrix.arch }}
+          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=${{ matrix.arch }}
+          cmake -G Ninja -B bin -DCMAKE_BUILD_TYPE=Release -DVCPKG_TARGET_TRIPLET=x64-windows-static -DVCPKG_TARGET_TRIPLET=x64-windows-static -DCMAKE_TOOLCHAIN_FILE=%VCPKG_INSTALLATION_ROOT%\scripts\buildsystems\vcpkg.cmake
+          cmake --build bin
+          cmake --install bin
+          cd out
+          7z a -tzip -mx9 -mtc=off ..\libsawyer-static-${{ matrix.platform }}.zip *
+
+      - name: Build fsaw
+        if: matrix.platform == 'x64'
+        shell: cmd
+        run: |
+          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=${{ matrix.arch }}
           cd tools/fsaw
-          cmake -G Ninja -B bin -DCMAKE_BUILD_TYPE=Release
+          cmake -G Ninja -B bin -DCMAKE_BUILD_TYPE=Release -DVCPKG_TARGET_TRIPLET=x64-windows-static -DCMAKE_TOOLCHAIN_FILE=%VCPKG_INSTALLATION_ROOT%\scripts\buildsystems\vcpkg.cmake
           cmake --build bin
 
       - name: Build spritec
+        if: matrix.platform == 'x64'
         shell: cmd
         run: |
-          call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=${{ matrix.arch }}
+          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=${{ matrix.arch }}
           cd tools/spritec
-          cmake -G Ninja -B bin -DCMAKE_BUILD_TYPE=Release
+          cmake -G Ninja -B bin -DCMAKE_BUILD_TYPE=Release -DVCPKG_TARGET_TRIPLET=x64-windows-static -DCMAKE_TOOLCHAIN_FILE=%VCPKG_INSTALLATION_ROOT%\scripts\buildsystems\vcpkg.cmake
           cmake --build bin
 
-      - name: Upload zip as artifact
-        uses: actions/upload-artifact@v2
+      - name: Upload libsawyer
+        uses: actions/upload-artifact@v3
         with:
-          name: libsawyer-${{ matrix.platform }}.zip
-          path: libsawyer-${{ matrix.platform }}.zip
+          name: libsawyer-static-${{ matrix.platform }}.zip
+          path: libsawyer-static-${{ matrix.platform }}.zip
+
+      - name: Upload tools
+        if: matrix.platform == 'x64'
+        uses: actions/upload-artifact@v3
+        with:
+          name: libsawyer-tools.zip
+          path: |
+            tools/fsaw/bin/fsaw.exe
+            tools/spritec/bin/spritec.exe

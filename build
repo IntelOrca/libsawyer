@@ -3,9 +3,16 @@ set -e
 
 OS=unix
 BINEXT=
+ARTEFACT_OS=linux
+ARTEFACT_EXT=.tar.gz
+ARCH=x64
 if [[ "$OSTYPE" == "cygwin" || "$OSTYPE" == "msys" ]]; then
     OS=windows
     BINEXT=.exe
+    ARTEFACT_OS=win
+    ARTEFACT_EXT=.zip
+elif [[ -f "/etc/alpine-release" ]]; then
+    ARTEFACT_OS=musl
 fi
 
 if [ "$CONFIGURATION" = "" ]; then
@@ -13,21 +20,29 @@ if [ "$CONFIGURATION" = "" ]; then
 fi
 
 VCPKG_TRIPLET_ARG=""
+VCPKG_TOOLCHAIN_ARG=""
 if [ "$STATIC" == "true" ]; then
     VCPKG_TRIPLET_ARG="-DVCPKG_TARGET_TRIPLET=x64-windows-static"
+fi
+if [ "$OS" == "windows" ]; then
+    VCPKG_TOOLCHAIN_ARG="-DCMAKE_TOOLCHAIN_FILE=$VCPKG_LOCATION"
 fi
 
 VCPKG_LOCATION=M:/git/vcpkg/scripts/buildsystems/vcpkg.cmake
 CMAKE_CLEAN="rm -rf bin out"
-CMAKE_CONFIGURE_CMD="cmake -G Ninja -B bin -DCMAKE_BUILD_TYPE=$CONFIGURATION $VCPKG_TRIPLET_ARG -DCMAKE_TOOLCHAIN_FILE=$VCPKG_LOCATION"
+CMAKE_CONFIGURE_CMD="cmake -G Ninja -B bin -DCMAKE_BUILD_TYPE=$CONFIGURATION $VCPKG_TRIPLET_ARG $VCPKG_TOOLCHAIN_ARG"
 CMAKE_BUILD_CMD="cmake --build bin"
 CMAKE_INSTALL_CMD="cmake --install bin"
 
-createZip() {
+archive() {
     mkdir -p artefacts
     pushd "$2" > /dev/null
         rm -f "../artefacts/$1"
-        7z a -y -bd -r "../artefacts/$1" ./*
+        if [[ "$OSTYPE" == "cygwin" || "$OSTYPE" == "msys" ]]; then
+            7z a -y -bd -r "../artefacts/$1" ./*
+        else
+            tar -czf "../artefacts/$1" *
+        fi
     popd > /dev/null
 }
 
@@ -36,7 +51,7 @@ $CMAKE_CLEAN
 $CMAKE_CONFIGURE_CMD
 $CMAKE_BUILD_CMD
 $CMAKE_INSTALL_CMD
-createZip libsawyer-win-x64.zip out
+archive "libsawyer-$ARTEFACT_OS-$ARCH$ARTEFACT_EXT" out
 
 if [ "$OS" != "windows" ] || [ "$STATIC" = "true" ]; then
     echo -e "\033[0;36mBuilding fsaw\033[0m"
@@ -56,6 +71,6 @@ if [ "$OS" != "windows" ] || [ "$STATIC" = "true" ]; then
     mkdir -p temp
     cp "tools/fsaw/bin/fsaw$BINEXT" temp
     cp "tools/spritec/bin/spritec$BINEXT" temp
-    createZip libsawyer-tools-win-x64.zip temp
+    archive "libsawyer-tools-$ARTEFACT_OS-$ARCH$ARTEFACT_EXT" temp
     rm -rf temp
 fi

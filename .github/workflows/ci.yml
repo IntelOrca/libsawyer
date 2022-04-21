@@ -1,6 +1,28 @@
 name: CI
 on: [push, pull_request]
 jobs:
+  alpine:
+    name: Alpine
+    runs-on: ubuntu-latest
+    container: alpine
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [x64]
+    steps:
+      - name: Prepare environment
+        run: apk add bash cmake ninja g++ libpng-dev nlohmann-json gtest-dev
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Build libsawyer and tools
+        run: ./build
+      - name: Test libsawyer
+        run: ./run-tests
+      - name: Upload tools
+        uses: actions/upload-artifact@v3
+        with:
+          name: libsawyer-tools-musl-${{ matrix.platform }}.tar.gz
+          path: artefacts/libsawyer-tools-musl-${{ matrix.platform }}.tar.gz
   ubuntu:
     name: Ubuntu
     runs-on: ubuntu-latest
@@ -10,50 +32,18 @@ jobs:
         platform: [x64]
     steps:
       - name: Prepare environment
-        run: |
-          sudo apt-get install libgtest-dev ninja-build libpng-dev nlohmann-json3-dev
-#         sudo apt-get install python2 python-yaml
-
+        run: sudo apt-get install ninja-build libpng-dev nlohmann-json3-dev libgtest-dev
       - name: Checkout
         uses: actions/checkout@v3
-      - name: Build libsawyer
-        run: |
-          cmake -G Ninja -B bin -DCMAKE_BUILD_TYPE=Release
-          cmake --build bin
-          cmake --install bin
-          cd out
-          zip -r ../libsawyer-linux-${{ matrix.platform }}.zip *
-
+      - name: Build libsawyer and tools
+        run: ./build
       - name: Test libsawyer
-        run: |
-          cmake --build bin --target tests
-          bin/tests
-
-      - name: Build fsaw
-        run: |
-          cd tools/fsaw
-          cmake -G Ninja -B bin
-          cmake --build bin
-
-      - name: Build spritec
-        run: |
-          cd tools/spritec
-          cmake -G Ninja -B bin
-          cmake --build bin
-
-      - name: Upload zip as artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: libsawyer-linux-${{ matrix.platform }}.zip
-          path: libsawyer-linux-${{ matrix.platform }}.zip
-
+        run: ./run-tests
       - name: Upload tools
         uses: actions/upload-artifact@v3
         with:
-          name: libsawyer-tools.zip
-          path: |
-            tools/fsaw/bin/fsaw
-            tools/spritec/bin/spritec
+          name: libsawyer-tools-linux-${{ matrix.platform }}.tar.gz
+          path: artefacts/libsawyer-tools-linux-${{ matrix.platform }}.tar.gz
 
   windows-shared:
     name: "Windows[shared]"

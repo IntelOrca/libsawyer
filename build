@@ -1,0 +1,61 @@
+#!/bin/bash
+set -e
+
+OS=unix
+BINEXT=
+if [[ "$OSTYPE" == "cygwin" || "$OSTYPE" == "msys" ]]; then
+    OS=windows
+    BINEXT=.exe
+fi
+
+if [ "$CONFIGURATION" = "" ]; then
+    CONFIGURATION=Release
+fi
+
+VCPKG_TRIPLET_ARG=""
+if [ "$STATIC" == "true" ]; then
+    VCPKG_TRIPLET_ARG="-DVCPKG_TARGET_TRIPLET=x64-windows-static"
+fi
+
+VCPKG_LOCATION=M:/git/vcpkg/scripts/buildsystems/vcpkg.cmake
+CMAKE_CLEAN="rm -rf bin out"
+CMAKE_CONFIGURE_CMD="cmake -G Ninja -B bin -DCMAKE_BUILD_TYPE=$CONFIGURATION $VCPKG_TRIPLET_ARG -DCMAKE_TOOLCHAIN_FILE=$VCPKG_LOCATION"
+CMAKE_BUILD_CMD="cmake --build bin"
+CMAKE_INSTALL_CMD="cmake --install bin"
+
+createZip() {
+    mkdir -p artefacts
+    pushd "$2" > /dev/null
+        rm -f "../artefacts/$1"
+        7z a -y -bd -r "../artefacts/$1" ./*
+    popd > /dev/null
+}
+
+echo -e "\033[0;36mBuilding libsawyer\033[0m"
+$CMAKE_CLEAN
+$CMAKE_CONFIGURE_CMD
+$CMAKE_BUILD_CMD
+$CMAKE_INSTALL_CMD
+createZip libsawyer-win-x64.zip out
+
+if [ "$OS" != "windows" ] || [ "$STATIC" = "true" ]; then
+    echo -e "\033[0;36mBuilding fsaw\033[0m"
+    pushd tools/fsaw > /dev/null
+        $CMAKE_CLEAN
+        $CMAKE_CONFIGURE_CMD
+        $CMAKE_BUILD_CMD
+    popd > /dev/null
+
+    echo -e "\033[0;36mBuilding spritec\033[0m"
+    pushd tools/spritec > /dev/null
+        $CMAKE_CLEAN
+        $CMAKE_CONFIGURE_CMD
+        $CMAKE_BUILD_CMD
+    popd > /dev/null
+
+    mkdir -p temp
+    cp "tools/fsaw/bin/fsaw$BINEXT" temp
+    cp "tools/spritec/bin/spritec$BINEXT" temp
+    createZip libsawyer-tools-win-x64.zip temp
+    rm -rf temp
+fi

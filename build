@@ -1,6 +1,16 @@
 #!/bin/bash
 set -e
 
+usage() {
+  echo "usage: build TARGET [ -c CONFIGURATION ] [ --static ]"
+  echo "targets:"
+  echo "    libsawyer (default)"
+  echo "    fsaw"
+  echo "    spritec"
+  echo "    tools"
+  exit 2
+}
+
 OS=unix
 BINEXT=
 ARTEFACT_OS=linux
@@ -15,6 +25,36 @@ elif [[ -f "/etc/alpine-release" ]]; then
     ARTEFACT_OS=musl
 fi
 
+COMPONENT="libsawyer"
+while (( "$#" )); do
+    case "$1" in
+        --static)
+            STATIC=true
+            shift
+            ;;
+        -c)
+            if [ -n "$2" ] && [ "${2:0:1}" != "-" ]; then
+                CONFIGURATION=$2
+                shift 2
+            else
+                echo "Error: Argument for $1 is missing" >&2
+                exit 1
+            fi
+            ;;
+        -h|--help)
+            usage
+            ;;
+        -*) # unsupported flags
+            echo "Error: Unsupported flag $1" >&2
+            exit 1
+            ;;
+        *)
+            COMPONENT="$1"
+            shift
+            ;;
+    esac
+done
+
 if [ "$CONFIGURATION" = "" ]; then
     CONFIGURATION=Release
 fi
@@ -23,12 +63,16 @@ VCPKG_TRIPLET_ARG=""
 VCPKG_TOOLCHAIN_ARG=""
 if [ "$STATIC" == "true" ]; then
     VCPKG_TRIPLET_ARG="-DVCPKG_TARGET_TRIPLET=x64-windows-static"
+    STATIC_DESC="-static"
 fi
 if [ "$OS" == "windows" ]; then
-    VCPKG_TOOLCHAIN_ARG="-DCMAKE_TOOLCHAIN_FILE=$VCPKG_LOCATION"
+    if [[ "$VCPKG_INSTALLATION_ROOT" = "" ]]; then
+        echo "\$VCPKG_INSTALLATION_ROOT not specified";
+        exit 1
+    fi
+    VCPKG_TOOLCHAIN_ARG="-DCMAKE_TOOLCHAIN_FILE=$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
 fi
 
-VCPKG_LOCATION=M:/git/vcpkg/scripts/buildsystems/vcpkg.cmake
 CMAKE_CLEAN="rm -rf bin out"
 CMAKE_CONFIGURE_CMD="cmake -G Ninja -B bin -DCMAKE_BUILD_TYPE=$CONFIGURATION $VCPKG_TRIPLET_ARG $VCPKG_TOOLCHAIN_ARG"
 CMAKE_BUILD_CMD="cmake --build bin"
@@ -46,28 +90,39 @@ archive() {
     popd > /dev/null
 }
 
-echo -e "\033[0;36mBuilding libsawyer\033[0m"
-$CMAKE_CLEAN
-$CMAKE_CONFIGURE_CMD
-$CMAKE_BUILD_CMD
-$CMAKE_INSTALL_CMD
-archive "libsawyer-$ARTEFACT_OS-$ARCH$ARTEFACT_EXT" out
+TARGET_DESC="$CONFIGURATION"
+if [[ "$STATIC" = "true" ]]; then
+    TARGET_DESC="$CONFIGURATION (static)"
+fi
 
-if [ "$OS" != "windows" ] || [ "$STATIC" = "true" ]; then
-    echo -e "\033[0;36mBuilding fsaw\033[0m"
+if [[ "$COMPONENT" = "libsawyer" ]]; then
+    echo -e "\033[0;36mBuilding libsawyer for $TARGET_DESC\033[0m"
+    $CMAKE_CLEAN
+    $CMAKE_CONFIGURE_CMD
+    $CMAKE_BUILD_CMD
+    $CMAKE_INSTALL_CMD
+    archive "libsawyer-$ARTEFACT_OS-$ARCH$STATIC_DESC$ARTEFACT_EXT" out
+fi
+
+if [[ "$COMPONENT" = "fsaw" ]]; then
+    echo -e "\033[0;36mBuilding fsaw for $TARGET_DESC\033[0m"
     pushd tools/fsaw > /dev/null
         $CMAKE_CLEAN
         $CMAKE_CONFIGURE_CMD
         $CMAKE_BUILD_CMD
     popd > /dev/null
+fi
 
-    echo -e "\033[0;36mBuilding spritec\033[0m"
+if [[ "$COMPONENT" = "spritec" ]]; then
+    echo -e "\033[0;36mBuilding spritec for $TARGET_DESC\033[0m"
     pushd tools/spritec > /dev/null
         $CMAKE_CLEAN
         $CMAKE_CONFIGURE_CMD
         $CMAKE_BUILD_CMD
     popd > /dev/null
+fi
 
+if [[ "$COMPONENT" = "tools" ]]; then
     mkdir -p temp
     cp "tools/fsaw/bin/fsaw$BINEXT" temp
     cp "tools/spritec/bin/spritec$BINEXT" temp

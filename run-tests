@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 cmake --build bin --target tests
-if [[ "$OSTYPE" == "cygwin" || "$OSTYPE" == "msys" ]]; then
+if [ "$OSTYPE" = "cygwin" ] || [ "$OSTYPE" = "msys" ]; then
     cmake --build bin --target test_crash
 fi
 cd bin && ctest

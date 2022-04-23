@@ -2,6 +2,8 @@
     "files.associations": {
         "*.cblproj": "xml",
         "*.schedule": "ini",
+        "Imakefile": "makefile",
+        "*.tf": "xml",
         "cassert": "cpp",
         "algorithm": "cpp",
         "cstring": "cpp",
@@ -89,6 +91,12 @@
         "stop_token": "cpp",
         "thread": "cpp",
         "cinttypes": "cpp",
-        "variant": "cpp"
+        "variant": "cpp",
+        "charconv": "cpp",
+        "format": "cpp",
+        "queue": "cpp",
+        "regex": "cpp",
+        "typeindex": "cpp",
+        "xtree": "cpp"
     }
 }

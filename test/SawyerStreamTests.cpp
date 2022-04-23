@@ -2,34 +2,6 @@
 #include <gtest/gtest.h>
 #include <sawyer/SawyerStream.h>
 
-template<typename CharT, typename TraitsT = std::char_traits<CharT>>
-class SpanStream : public std::istream
-{
-private:
-    class SpanStreamBuffer : public std::streambuf
-    {
-    public:
-        SpanStreamBuffer(stdx::span<CharT>& span)
-        {
-            this->setg((char*)span.data(), (char*)span.data(), (char*)(span.data() + span.size()));
-        }
-    };
-
-    std::unique_ptr<SpanStreamBuffer> _buffer;
-
-    SpanStream(std::unique_ptr<SpanStreamBuffer>&& buffer)
-        : std::istream(buffer.get())
-    {
-        _buffer = std::move(buffer);
-    }
-
-public:
-    SpanStream(stdx::span<CharT> data)
-        : SpanStream(std::make_unique<SpanStreamBuffer>(data))
-    {
-    }
-};
-
 class SawyerStreamTests : public testing::Test
 {
 protected:
@@ -49,20 +21,19 @@ protected:
 
     void assertEncodeDecode(cs::SawyerEncoding encodingType, stdx::span<uint8_t const> inputData)
     {
-        std::stringstream stream;
+        cs::MemoryStream stream;
         cs::SawyerStreamWriter writer(stream);
         writer.writeChunk(encodingType, inputData.data(), inputData.size());
         writer.writeChecksum();
         writer.close();
 
-        auto final = stream.str();
-        auto encodedData = stdx::span(reinterpret_cast<const uint8_t*>(final.data()), final.size());
+        auto encodedData = stream.asSpan<const uint8_t>();
         assertDecode(encodedData, inputData);
     }
 
     void assertDecode(stdx::span<uint8_t const> encodedData, stdx::span<uint8_t const> expectedData)
     {
-        SpanStream stream(encodedData);
+        cs::BinaryStream stream(encodedData);
         cs::SawyerStreamReader reader(stream);
         auto decodedData = reader.readChunk();
 
@@ -76,7 +47,7 @@ protected:
 
     void assertDecodeException(stdx::span<uint8_t const> data)
     {
-        SpanStream stream(data);
+        cs::BinaryStream stream(data);
         cs::SawyerStreamReader reader(stream);
         EXPECT_THROW(reader.readChunk(), std::runtime_error);
     }

@@ -19,6 +19,21 @@
                     "ignoreFailures": true
                 }
             ]
+        },
+        {
+            "name": "Debug gxc",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/tools/gxc/bin/gxc.exe",
+            "args": [
+                "exportall",
+                "F:\\games\\rct2\\Data\\g1.dat",
+                "out"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/tools/gxc",
+            "environment": [],
+            "console": "externalTerminal"
         }
     ]
 }

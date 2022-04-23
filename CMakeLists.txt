@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.15)
 
 # Do not allow building in root
 if (CMAKE_BINARY_DIR STREQUAL CMAKE_SOURCE_DIR)
@@ -29,6 +29,7 @@ endfunction ()
 # Options
 option(ENABLE_BREAKPAD      "Embed breakpad into the library." ON)
 option(ENABLE_DISCORD_RPC   "Embed discord-rpc into the library." ON)
+option(ENABLE_LIBPNG        "Embed libpng into the library." ON)
 option(ENABLE_SCRIPTING     "Embed duktape and dukglue into the library." ON)
 option(ENABLE_TESTS         "Build the unit tests for the library." ON)
 
@@ -43,6 +44,9 @@ set(CMAKE_CXX_STANDARD 17)
 file(GLOB_RECURSE SAWYER_SOURCES "src/*.cpp")
 file(GLOB_RECURSE SAWYER_HEADERS "src/*.h" "src/*.hpp")
 add_library(sawyer STATIC ${SAWYER_SOURCES})
+if (${VCPKG_TARGET_TRIPLET} MATCHES "-static$")
+    set_property(TARGET sawyer PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif ()
 
 # Breakpad
 if (ENABLE_BREAKPAD AND MSVC)
@@ -96,6 +100,19 @@ if (ENABLE_DISCORD_RPC)
     target_include_directories(sawyer PRIVATE "${SOURCE_DIR}/include")
     target_compile_definitions(sawyer PRIVATE CS_ENABLE_DISCORD_RPC)
     merge_static_libraries(sawyer ${DISCORD_RPC_LIB})
+endif ()
+
+if (ENABLE_LIBPNG)
+    if (MSVC)
+        find_package(libpng CONFIG REQUIRED)
+    endif ()
+    target_compile_definitions(sawyer PRIVATE CS_ENABLE_LIBPNG)
+
+    if (${VCPKG_TARGET_TRIPLET} MATCHES "-static$")
+        merge_static_libraries(sawyer $<TARGET_FILE:png_static>)
+    else ()
+        target_link_libraries(sawyer PRIVATE png)
+    endif ()
 endif ()
 
 # Scripting

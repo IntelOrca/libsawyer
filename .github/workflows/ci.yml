@@ -1,6 +1,34 @@
 name: CI
 on: [push, pull_request]
 jobs:
+  alpine:
+    name: Alpine
+    runs-on: ubuntu-latest
+    container: alpine
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [x64]
+    steps:
+      - name: Prepare environment
+        run: apk add bash cmake ninja g++ libpng-dev nlohmann-json gtest-dev
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Build libsawyer
+        run: ./build libsawyer
+      - name: Test libsawyer
+        run: ./run-tests
+      - name: Build fsaw
+        run: ./build fsaw
+      - name: Build gxc
+        run: ./build gxc
+      - name: Package tools
+        run: ./build tools
+      - name: Upload tools
+        uses: actions/upload-artifact@v3
+        with:
+          name: libsawyer-tools-musl-${{ matrix.platform }}.tar.gz
+          path: artefacts/libsawyer-tools-musl-${{ matrix.platform }}.tar.gz
   ubuntu:
     name: Ubuntu
     runs-on: ubuntu-latest
@@ -10,39 +38,27 @@ jobs:
         platform: [x64]
     steps:
       - name: Prepare environment
-        run: |
-          sudo apt-get install libgtest-dev ninja-build
-#         sudo apt-get install python2 python-yaml
-
+        run: sudo apt-get install ninja-build libpng-dev nlohmann-json3-dev libgtest-dev
       - name: Checkout
-        uses: actions/checkout@v1
+        uses: actions/checkout@v3
       - name: Build libsawyer
-        run: |
-          cmake -G Ninja -B bin -DCMAKE_BUILD_TYPE=Release
-          cmake --build bin
-          cmake --install bin
-          cd out
-          zip -r ../libsawyer-linux-${{ matrix.platform }}.zip *
-
+        run: ./build libsawyer
       - name: Test libsawyer
-        run: |
-          cmake --build bin --target tests
-          bin/tests
-
+        run: ./run-tests
       - name: Build fsaw
-        run: |
-          cd tools/fsaw
-          cmake -G Ninja -B bin
-          cmake --build bin
-
-      - name: Upload zip as artifact
-        uses: actions/upload-artifact@v2
+        run: ./build fsaw
+      - name: Build gxc
+        run: ./build gxc
+      - name: Package tools
+        run: ./build tools
+      - name: Upload tools
+        uses: actions/upload-artifact@v3
         with:
-          name: libsawyer-linux-${{ matrix.platform }}.zip
-          path: libsawyer-linux-${{ matrix.platform }}.zip
+          name: libsawyer-tools-linux-${{ matrix.platform }}.tar.gz
+          path: artefacts/libsawyer-tools-linux-${{ matrix.platform }}.tar.gz
 
-  windows:
-    name: Windows
+  windows-shared:
+    name: "Windows[shared]"
     runs-on: windows-latest
     strategy:
       fail-fast: false
@@ -54,45 +70,81 @@ jobs:
           arch: amd64
     steps:
       - name: Checkout
-        uses: actions/checkout@v1
-#     - uses: actions/setup-python@v2
-#       with:
-#         python-version: '2.x'
-#     - name: Setup python pre-reqs
-#       shell: cmd
-#       run: |
-#         cd /D ${{ env.pythonLocation }}
-#         mklink python2.exe python.exe
-#         pip install PyYAML
+        uses: actions/checkout@v3
+      - name: Cache vcpkg
+        uses: actions/cache@v3
+        env:
+          cache-name: cache-vcpkg
+        with:
+          path: C:/vcpkg
+          key: ${{ runner.os }}-build-${{ env.cache-name }}
       - name: Build libsawyer
         shell: cmd
         run: |
-          call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=${{ matrix.arch }}
-          cmake -G Ninja -B bin -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=%VCPKG_INSTALLATION_ROOT%\scripts\buildsystems\vcpkg.cmake
-          cmake --build bin
-          cmake --install bin
-          cd out
-          7z a -tzip -mx9 -mtc=off ..\libsawyer-${{ matrix.platform }}.zip *
-
+          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=${{ matrix.arch }}
+          sh build libsawyer -p ${{ matrix.platform }}
       - name: Test libsawyer
         shell: cmd
         run: |
-          call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=${{ matrix.arch }}
-          cmake --build bin --target tests
-          cmake --build bin --target test_crash
-          cd bin
-          ctest
-
-      - name: Build fsaw
+          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=${{ matrix.arch }}
+          sh run-tests
+      - name: Upload zip as artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: libsawyer-win-${{ matrix.platform }}.zip
+          path: artefacts/libsawyer-win-${{ matrix.platform }}.zip
+  windows-static:
+    name: "Windows[static]"
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - platform: x86
+          arch: x86
+        - platform: x64
+          arch: amd64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Cache vcpkg
+        uses: actions/cache@v3
+        env:
+          cache-name: cache-vcpkg
+        with:
+          path: C:/vcpkg
+          key: ${{ runner.os }}-build-${{ env.cache-name }}
+      - name: Build libsawyer
         shell: cmd
         run: |
-          call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=${{ matrix.arch }}
-          cd tools/fsaw
-          cmake -G Ninja -B bin -DCMAKE_BUILD_TYPE=Release
-          cmake --build bin
-
-      - name: Upload zip as artifact
-        uses: actions/upload-artifact@v2
+          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=${{ matrix.arch }}
+          sh build libsawyer --static
+      - name: Build fsaw
+        if: matrix.platform == 'x64'
+        shell: cmd
+        run: |
+          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=${{ matrix.arch }}
+          sh build fsaw --static
+      - name: Build gxc
+        if: matrix.platform == 'x64'
+        shell: cmd
+        run: |
+          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=${{ matrix.arch }}
+          sh build gxc --static
+      - name: Package tools
+        if: matrix.platform == 'x64'
+        shell: cmd
+        run: |
+          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=${{ matrix.arch }}
+          sh build tools --static
+      - name: Upload libsawyer
+        uses: actions/upload-artifact@v3
         with:
-          name: libsawyer-${{ matrix.platform }}.zip
-          path: libsawyer-${{ matrix.platform }}.zip
+          name: libsawyer-win-${{ matrix.platform }}-static.zip
+          path: artefacts/libsawyer-win-${{ matrix.platform }}-static.zip
+      - name: Upload tools
+        if: matrix.platform == 'x64'
+        uses: actions/upload-artifact@v3
+        with:
+          name: libsawyer-tools-win-${{ matrix.platform }}.zip
+          path: artefacts/libsawyer-tools-win-${{ matrix.platform }}.zip

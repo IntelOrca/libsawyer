@@ -1,5 +1,3 @@
-#pragma once
-
 #include "Stream.h"
 #include <cstring>
 #include <stdexcept>
@@ -177,4 +175,99 @@ void FileStream::write(const void* buffer, size_t len)
         if (_fstream.fail())
             throw std::runtime_error("Failed to write data");
     }
+}
+
+std::vector<std::byte> FileStream::readAllBytes(const fs::path& path)
+{
+    std::vector<std::byte> result;
+    FileStream fs(path, StreamFlags::read);
+    auto len = fs.getLength();
+    result.resize(len);
+    fs.read(result.data(), len);
+    return result;
+}
+
+void FileStream::writeAllBytes(const fs::path& path, const void* data, size_t len)
+{
+    FileStream fs(path, StreamFlags::write);
+    fs.write(data, len);
+}
+
+std::string FileStream::readAllText(const fs::path& path)
+{
+    std::string result;
+
+    FileStream fs(path, StreamFlags::read);
+    if (fs.getLength() >= 3)
+    {
+        // Read BOM
+        uint8_t bom[3]{};
+        fs.read(bom, sizeof(bom));
+        if (!(bom[0] == 0xEF && bom[1] == 0xBB && bom[2] == 0xBF))
+        {
+            result.append(reinterpret_cast<char*>(bom), sizeof(bom));
+        }
+    }
+
+    auto remainingLen = fs.getLength() - fs.getPosition();
+    auto start = result.size();
+    result.resize(start + remainingLen);
+    fs.read(result.data() + start, remainingLen);
+    return result;
+}
+
+BinaryReader::BinaryReader(Stream& stream)
+    : _stream(&stream)
+{
+}
+
+bool BinaryReader::trySeek(int64_t len)
+{
+    auto actualLen = getSafeSeekAmount(len);
+    if (actualLen != 0)
+    {
+        if (actualLen == len)
+        {
+            _stream->seek(actualLen);
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool BinaryReader::seekSafe(int64_t len)
+{
+    auto actualLen = getSafeSeekAmount(len);
+    if (actualLen != 0)
+    {
+        _stream->seek(actualLen);
+        return actualLen == len;
+    }
+    return true;
+}
+
+int64_t BinaryReader::getSafeSeekAmount(int64_t len)
+{
+    if (len == 0)
+    {
+        return 0;
+    }
+    else if (len < 0)
+    {
+        return -static_cast<int64_t>(std::max<uint64_t>(_stream->getPosition(), -len));
+    }
+    else
+    {
+        auto remainingLen = _stream->getLength() - _stream->getPosition();
+        return std::min<uint64_t>(len, remainingLen);
+    }
+}
+
+BinaryWriter::BinaryWriter(Stream& stream)
+    : _stream(&stream)
+{
 }

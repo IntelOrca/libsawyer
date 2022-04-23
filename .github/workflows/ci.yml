@@ -82,7 +82,7 @@ jobs:
         shell: cmd
         run: |
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=${{ matrix.arch }}
-          sh build libsawyer
+          sh build libsawyer -p ${{ matrix.platform }}
       - name: Test libsawyer
         shell: cmd
         run: |

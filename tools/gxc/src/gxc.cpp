@@ -1,6 +1,6 @@
-#include "spritec.h"
 #include "SpriteArchive.h"
 #include "SpriteManifest.h"
+#include "gxc.h"
 #include <cstdio>
 #include <iostream>
 #include <optional>
@@ -14,7 +14,7 @@
 #include <string_view>
 
 using namespace cs;
-using namespace spritec;
+using namespace gxc;
 
 static void convertPaletteToBmp(const GxEntry& entry, void* dst)
 {
@@ -470,12 +470,12 @@ static void printHelp()
 {
     std::cout << "gx Sprite Archive Tool " << getVersionInfo() << std::endl;
     std::cout << std::endl;
-    std::cout << "usage: spritec build     <gx_file> <json_path>" << std::endl;
-    std::cout << "               details   <gx_file> [idx]" << std::endl;
-    std::cout << "               list      <gx_file>" << std::endl;
-    std::cout << "               export    <gx_file> [idx] <output_file>" << std::endl;
-    std::cout << "               exportall <gx_file> <output_directory>" << std::endl;
-    std::cout << "               upgrade   <gx_file> <csg1i.dat> <csg1.1>" << std::endl;
+    std::cout << "usage: gxc build     <gx_file> <json_path>" << std::endl;
+    std::cout << "           details   <gx_file> [idx]" << std::endl;
+    std::cout << "           list      <gx_file>" << std::endl;
+    std::cout << "           export    <gx_file> [idx] <output_file>" << std::endl;
+    std::cout << "           exportall <gx_file> <output_directory>" << std::endl;
+    std::cout << "           upgrade   <gx_file> <csg1i.dat> <csg1.1>" << std::endl;
     std::cout << "options:" << std::endl;
     std::cout << "           -m <mode>  Image conversion mode (default, closest, or dithering)" << std::endl;
     std::cout << "           -q         Quiet" << std::endl;

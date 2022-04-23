@@ -4,7 +4,7 @@
 #include <sawyer/Palette.h>
 #include <string>
 
-namespace spritec
+namespace gxc
 {
     namespace ExitCodes
     {

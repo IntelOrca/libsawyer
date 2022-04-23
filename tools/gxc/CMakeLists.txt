@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(spritec CXX)
+project(gxc CXX)
 
 # libsawyer
 find_package(sawyer REQUIRED PATHS ../../out/share)
@@ -23,11 +23,11 @@ else ()
     endif()
 endif ()
 
-add_executable(spritec ${SAWYER_SOURCES})
+add_executable(gxc ${SAWYER_SOURCES})
 if (${VCPKG_TARGET_TRIPLET} MATCHES "-static$")
-    set_property(TARGET spritec PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
-    target_link_libraries(spritec PRIVATE png_static)
+    set_property(TARGET gxc PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+    target_link_libraries(gxc PRIVATE png_static)
 endif ()
 
-target_link_libraries(spritec PRIVATE nlohmann_json::nlohmann_json)
-target_link_libraries(spritec PRIVATE sawyer::sawyer)
+target_link_libraries(gxc PRIVATE nlohmann_json::nlohmann_json)
+target_link_libraries(gxc PRIVATE sawyer::sawyer)

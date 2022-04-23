@@ -1,9 +1,9 @@
-#include "spritec.h"
+#include "gxc.h"
 #include <sawyer/Palette.h>
 
 using namespace cs;
 
-namespace spritec
+namespace gxc
 {
     constexpr const static Palette standardPalette = { {
         // 0 (Unused/Transparent)

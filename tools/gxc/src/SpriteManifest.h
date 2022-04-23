@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-namespace spritec
+namespace gxc
 {
     class SpriteArchive;
 

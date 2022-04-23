@@ -3,7 +3,7 @@
 #include <sawyer/Stream.h>
 
 using namespace cs;
-using namespace spritec;
+using namespace gxc;
 
 SpriteArchive SpriteArchive::fromFile(const fs::path& path)
 {

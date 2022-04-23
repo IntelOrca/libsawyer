@@ -4,7 +4,7 @@
 #include <sawyer/Stream.h>
 
 using namespace cs;
-using namespace spritec;
+using namespace gxc;
 
 static SpriteManifest::Format parseFormat(const nlohmann::json& jFormat)
 {

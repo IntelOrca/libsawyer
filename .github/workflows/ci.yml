@@ -20,8 +20,8 @@ jobs:
         run: ./run-tests
       - name: Build fsaw
         run: ./build fsaw
-      - name: Build spritec
-        run: ./build spritec
+      - name: Build gxc
+        run: ./build gxc
       - name: Package tools
         run: ./build tools
       - name: Upload tools
@@ -47,8 +47,8 @@ jobs:
         run: ./run-tests
       - name: Build fsaw
         run: ./build fsaw
-      - name: Build spritec
-        run: ./build spritec
+      - name: Build gxc
+        run: ./build gxc
       - name: Package tools
         run: ./build tools
       - name: Upload tools
@@ -125,12 +125,12 @@ jobs:
         run: |
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=${{ matrix.arch }}
           sh build fsaw --static
-      - name: Build spritec
+      - name: Build gxc
         if: matrix.platform == 'x64'
         shell: cmd
         run: |
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=${{ matrix.arch }}
-          sh build spritec --static
+          sh build gxc --static
       - name: Package tools
         if: matrix.platform == 'x64'
         shell: cmd

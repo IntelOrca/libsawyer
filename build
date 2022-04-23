@@ -6,7 +6,7 @@ usage() {
   echo "targets:"
   echo "    libsawyer (default)"
   echo "    fsaw"
-  echo "    spritec"
+  echo "    gxc"
   echo "    tools"
   exit 2
 }
@@ -119,9 +119,9 @@ if [[ "$COMPONENT" = "fsaw" ]]; then
     popd > /dev/null
 fi
 
-if [[ "$COMPONENT" = "spritec" ]]; then
-    echo -e "\033[0;36mBuilding spritec for $TARGET_DESC\033[0m"
-    pushd tools/spritec > /dev/null
+if [[ "$COMPONENT" = "gxc" ]]; then
+    echo -e "\033[0;36mBuilding gxc for $TARGET_DESC\033[0m"
+    pushd tools/gxc > /dev/null
         $CMAKE_CLEAN
         $CMAKE_CONFIGURE_CMD
         $CMAKE_BUILD_CMD
@@ -131,7 +131,7 @@ fi
 if [[ "$COMPONENT" = "tools" ]]; then
     mkdir -p temp
     cp "tools/fsaw/bin/fsaw$BINEXT" temp
-    cp "tools/spritec/bin/spritec$BINEXT" temp
+    cp "tools/gxc/bin/gxc$BINEXT" temp
     archive "libsawyer-tools-$ARTEFACT_OS-$PLATFORM$ARTEFACT_EXT" temp
     rm -rf temp
 fi

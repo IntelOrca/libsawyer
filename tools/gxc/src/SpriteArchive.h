@@ -7,7 +7,7 @@
 
 using namespace cs;
 
-namespace spritec
+namespace gxc
 {
     class SpriteArchive
     {

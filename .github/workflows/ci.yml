@@ -24,11 +24,18 @@ jobs:
         run: ./build gxc
       - name: Package tools
         run: ./build tools
+      - name: Upload libsawyer
+        uses: actions/upload-artifact@v3
+        with:
+          name: libsawyer-musl-${{ matrix.platform }}.tar.gz
+          path: artefacts/libsawyer-musl-${{ matrix.platform }}.tar.gz
+          if-no-files-found: error
       - name: Upload tools
         uses: actions/upload-artifact@v3
         with:
           name: libsawyer-tools-musl-${{ matrix.platform }}.tar.gz
           path: artefacts/libsawyer-tools-musl-${{ matrix.platform }}.tar.gz
+          if-no-files-found: error
   ubuntu:
     name: Ubuntu
     runs-on: ubuntu-latest
@@ -51,11 +58,18 @@ jobs:
         run: ./build gxc
       - name: Package tools
         run: ./build tools
+      - name: Upload libsawyer
+        uses: actions/upload-artifact@v3
+        with:
+          name: libsawyer-linux-${{ matrix.platform }}.tar.gz
+          path: artefacts/libsawyer-linux-${{ matrix.platform }}.tar.gz
+          if-no-files-found: error
       - name: Upload tools
         uses: actions/upload-artifact@v3
         with:
           name: libsawyer-tools-linux-${{ matrix.platform }}.tar.gz
           path: artefacts/libsawyer-tools-linux-${{ matrix.platform }}.tar.gz
+          if-no-files-found: error
 
   windows-shared:
     name: "Windows[shared]"
@@ -88,11 +102,12 @@ jobs:
         run: |
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=${{ matrix.arch }}
           sh run-tests
-      - name: Upload zip as artifact
+      - name: Upload libsawyer
         uses: actions/upload-artifact@v3
         with:
           name: libsawyer-win-${{ matrix.platform }}.zip
           path: artefacts/libsawyer-win-${{ matrix.platform }}.zip
+          if-no-files-found: error
   windows-static:
     name: "Windows[static]"
     runs-on: windows-latest
@@ -118,7 +133,7 @@ jobs:
         shell: cmd
         run: |
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=${{ matrix.arch }}
-          sh build libsawyer --static
+          sh build libsawyer -p ${{ matrix.platform }} --static
       - name: Build fsaw
         if: matrix.platform == 'x64'
         shell: cmd
@@ -142,9 +157,27 @@ jobs:
         with:
           name: libsawyer-win-${{ matrix.platform }}-static.zip
           path: artefacts/libsawyer-win-${{ matrix.platform }}-static.zip
+          if-no-files-found: error
       - name: Upload tools
         if: matrix.platform == 'x64'
         uses: actions/upload-artifact@v3
         with:
           name: libsawyer-tools-win-${{ matrix.platform }}.zip
           path: artefacts/libsawyer-tools-win-${{ matrix.platform }}.zip
+          if-no-files-found: error
+  deploy:
+    name: "Deploy"
+    needs: [alpine, ubuntu, windows-shared, windows-static]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get artefacts
+        uses: actions/download-artifact@v3
+        with:
+          path: artefacts
+      - name: Flatten tree structure
+        run: cd artefacts && mv */* .. && cd .. && rm -rf artefacts && ls -al
+      - name: Create release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/v')
+        with:
+          files: "*"

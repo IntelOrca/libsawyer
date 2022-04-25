@@ -23,6 +23,7 @@ namespace gxc
         list,
         exportSingle,
         exportAll,
+        merge,
         upgrade,
         help,
         version,
@@ -38,6 +39,7 @@ namespace gxc
         std::string mode;
         std::string csgHeaderPath;
         std::string csgDataPath;
+        std::string inputPath[2];
         bool quiet{};
     };
 

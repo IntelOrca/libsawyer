@@ -1,6 +1,6 @@
+#include "gxc.h"
 #include "SpriteArchive.h"
 #include "SpriteManifest.h"
-#include "gxc.h"
 #include <cstdio>
 #include <iostream>
 #include <optional>
@@ -195,7 +195,7 @@ int runBuild(const CommandLineOptions& options)
         }
     }
     archive.writeToFile(outputPath);
-    return 0;
+    return ExitCodes::ok;
 }
 
 static int runDetails(const CommandLineOptions& options)
@@ -365,6 +365,27 @@ static int runExportAll(const CommandLineOptions& options)
     }
 }
 
+static int runMerge(const CommandLineOptions& options)
+{
+    auto input0 = readGxFileOrError(options.inputPath[0]);
+    auto input1 = readGxFileOrError(options.inputPath[1]);
+    if (!input0 || !input1)
+    {
+        return ExitCodes::fileError;
+    }
+
+    auto numEntries = input1->getNumEntries();
+    for (uint32_t i = 0; i < numEntries; i++)
+    {
+        const auto& entry = input1->getEntry(i);
+        const auto& data = input1->getEntryData(i);
+        input0->addEntry(entry, data);
+    }
+
+    input0->writeToFile(options.path);
+    return ExitCodes::ok;
+}
+
 static int runUpgrade(const CommandLineOptions& options)
 {
     auto header = FileStream::readAllBytes(fs::u8path(options.csgHeaderPath));
@@ -379,7 +400,7 @@ static int runUpgrade(const CommandLineOptions& options)
     fs.write(&gxHeader.dataSize, sizeof(gxHeader.dataSize));
     fs.write(header.data(), header.size());
     fs.write(data.data(), data.size());
-    return 0;
+    return ExitCodes::ok;
 }
 
 static std::optional<CommandLineOptions> parseCommandLine(int argc, const char** argv)
@@ -437,6 +458,13 @@ static std::optional<CommandLineOptions> parseCommandLine(int argc, const char**
             options.path = parser.getArg(1);
             options.outputPath = parser.getArg(2);
         }
+        else if (firstArg == "merge")
+        {
+            options.action = CommandLineAction::merge;
+            options.path = parser.getArg(1);
+            options.inputPath[0] = parser.getArg(2);
+            options.inputPath[1] = parser.getArg(3);
+        }
         else if (firstArg == "upgrade")
         {
             options.action = CommandLineAction::upgrade;
@@ -475,6 +503,7 @@ static void printHelp()
     std::cout << "           list      <gx_file>" << std::endl;
     std::cout << "           export    <gx_file> [idx] <output_file>" << std::endl;
     std::cout << "           exportall <gx_file> <output_directory>" << std::endl;
+    std::cout << "           merge     <gx_file> <gx_file> <gx_file>" << std::endl;
     std::cout << "           upgrade   <gx_file> <csg1i.dat> <csg1.1>" << std::endl;
     std::cout << "options:" << std::endl;
     std::cout << "           -m <mode>  Image conversion mode (default, closest, or dithering)" << std::endl;
@@ -509,6 +538,9 @@ int main(int argc, const char** argv)
                 break;
             case CommandLineAction::exportAll:
                 runExportAll(*options);
+                break;
+            case CommandLineAction::merge:
+                runMerge(*options);
                 break;
             case CommandLineAction::upgrade:
                 runUpgrade(*options);

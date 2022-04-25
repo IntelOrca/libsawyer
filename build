@@ -96,6 +96,17 @@ archive() {
     popd > /dev/null
 }
 
+build_tool() {
+    if [[ "$COMPONENT" = "$1" ]]; then
+        echo -e "\033[0;36mBuilding $1 for $TARGET_DESC\033[0m"
+        pushd "tools/$1" > /dev/null
+            $CMAKE_CLEAN
+            $CMAKE_CONFIGURE_CMD
+            $CMAKE_BUILD_CMD
+        popd > /dev/null
+    fi
+}
+
 TARGET_DESC="$CONFIGURATION"
 if [[ "$STATIC" = "true" ]]; then
     TARGET_DESC="$CONFIGURATION (static)"
@@ -110,23 +121,9 @@ if [[ "$COMPONENT" = "libsawyer" ]]; then
     archive "libsawyer-$ARTEFACT_OS-$PLATFORM$STATIC_DESC$ARTEFACT_EXT" out
 fi
 
-if [[ "$COMPONENT" = "fsaw" ]]; then
-    echo -e "\033[0;36mBuilding fsaw for $TARGET_DESC\033[0m"
-    pushd tools/fsaw > /dev/null
-        $CMAKE_CLEAN
-        $CMAKE_CONFIGURE_CMD
-        $CMAKE_BUILD_CMD
-    popd > /dev/null
-fi
-
-if [[ "$COMPONENT" = "gxc" ]]; then
-    echo -e "\033[0;36mBuilding gxc for $TARGET_DESC\033[0m"
-    pushd tools/gxc > /dev/null
-        $CMAKE_CLEAN
-        $CMAKE_CONFIGURE_CMD
-        $CMAKE_BUILD_CMD
-    popd > /dev/null
-fi
+build_tool css
+build_tool gxc
+build_tool fsaw
 
 if [[ "$COMPONENT" = "tools" ]]; then
     mkdir -p temp

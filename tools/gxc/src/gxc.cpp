@@ -501,7 +501,7 @@ static std::optional<CommandLineOptions> parseCommandLine(int argc, const char**
 
 static std::string getVersionInfo()
 {
-    return "1.0";
+    return "1.1";
 }
 
 static void printVersion()

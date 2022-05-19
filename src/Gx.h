@@ -11,11 +11,11 @@ namespace cs
 {
     namespace GxFlags
     {
-        constexpr uint16_t bmp = 1 << 0;       // Image data is encoded as raw pixels
-        constexpr uint16_t rle = 1 << 2;       // Image data is encoded using run length encoding
-        constexpr uint16_t isPalette = 1 << 3; // Image data is a sequence of palette entries R8G8B8
-        constexpr uint16_t hasZoom = 1 << 4;   // Use a different sprite for higher zoom levels
-        constexpr uint16_t noZoom = 1 << 5;    // Does not get drawn at higher zoom levels (only zoom 0)
+        constexpr uint16_t transparent = 1 << 0; // Image is transparent
+        constexpr uint16_t rle = 1 << 2;         // Image data is encoded using run length encoding
+        constexpr uint16_t isPalette = 1 << 3;   // Image data is a sequence of palette entries R8G8B8
+        constexpr uint16_t hasZoom = 1 << 4;     // Use a different sprite for higher zoom levels
+        constexpr uint16_t noZoom = 1 << 5;      // Does not get drawn at higher zoom levels (only zoom 0)
     }
 
     constexpr uint8_t GxRleRowLengthMask = 0x7F;

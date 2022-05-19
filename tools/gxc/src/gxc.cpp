@@ -62,8 +62,8 @@ static void encodePalette(Stream& stream, const Image& image)
 static std::string stringifyFlags(uint16_t flags)
 {
     std::string result;
-    if (flags & GxFlags::bmp)
-        result += "bmp|";
+    if (flags & GxFlags::transparent)
+        result += "transparent|";
     if (flags & GxFlags::rle)
         result += "rle|";
     if (flags & GxFlags::isPalette)
@@ -178,13 +178,13 @@ int runBuild(const CommandLineOptions& options)
                     {
                         MemoryStream ms;
                         encoder.encodeRle(imageBuffer, ms);
-                        entry.flags = GxFlags::bmp | GxFlags::rle;
+                        entry.flags = GxFlags::transparent | GxFlags::rle;
                         archive.addEntry(entry, ms.asSpan<const std::byte>());
                         continue;
                     }
                 }
 
-                entry.flags = GxFlags::bmp;
+                entry.flags = GxFlags::transparent;
                 archive.addEntry(entry, stdx::span<const std::byte>(reinterpret_cast<std::byte*>(img.pixels.data()), img.pixels.size()));
             }
         }

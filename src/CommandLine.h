@@ -38,6 +38,7 @@ namespace cs
 
         std::string_view getErrorMessage() const;
         bool hasOption(std::string_view name) const;
+        const std::vector<std::string_view>* getArgs() const;
         const std::vector<std::string_view>* getArgs(std::string_view name) const;
         std::string_view getArg(std::string_view name, size_t index = 0) const;
         std::string_view getArg(size_t index) const;

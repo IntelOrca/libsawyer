@@ -368,18 +368,26 @@ static int runExportAll(const CommandLineOptions& options)
 static int runMerge(const CommandLineOptions& options)
 {
     auto input0 = readGxFileOrError(options.inputPath[0]);
-    auto input1 = readGxFileOrError(options.inputPath[1]);
-    if (!input0 || !input1)
+    if (!input0)
     {
         return ExitCodes::fileError;
     }
 
-    auto numEntries = input1->getNumEntries();
-    for (uint32_t i = 0; i < numEntries; i++)
+    for (size_t i = 1; i < options.inputPath.size(); i++)
     {
-        const auto& entry = input1->getEntry(i);
-        const auto& data = input1->getEntryData(i);
-        input0->addEntry(entry, data);
+        auto nextInput = readGxFileOrError(options.inputPath[i]);
+        if (!nextInput)
+        {
+            return ExitCodes::fileError;
+        }
+
+        auto numEntries = nextInput->getNumEntries();
+        for (uint32_t j = 0; j < numEntries; j++)
+        {
+            const auto& entry = nextInput->getEntry(j);
+            const auto& data = nextInput->getEntryData(j);
+            input0->addEntry(entry, data);
+        }
     }
 
     input0->writeToFile(options.path);
@@ -462,8 +470,15 @@ static std::optional<CommandLineOptions> parseCommandLine(int argc, const char**
         {
             options.action = CommandLineAction::merge;
             options.path = parser.getArg(1);
-            options.inputPath[0] = parser.getArg(2);
-            options.inputPath[1] = parser.getArg(3);
+
+            auto args = parser.getArgs();
+            if (args != nullptr)
+            {
+                for (size_t i = 2; i < args->size(); i++)
+                {
+                    options.inputPath.push_back(std::string(args->operator[](i)));
+                }
+            }
         }
         else if (firstArg == "upgrade")
         {
@@ -503,7 +518,7 @@ static void printHelp()
     std::cout << "           list      <gx_file>" << std::endl;
     std::cout << "           export    <gx_file> [idx] <output_file>" << std::endl;
     std::cout << "           exportall <gx_file> <output_directory>" << std::endl;
-    std::cout << "           merge     <gx_file> <gx_file> <gx_file>" << std::endl;
+    std::cout << "           merge     <gx_file> <gx_file> [<gx_file> ...]" << std::endl;
     std::cout << "           upgrade   <gx_file> <csg1i.dat> <csg1.1>" << std::endl;
     std::cout << "options:" << std::endl;
     std::cout << "           -m <mode>  Image conversion mode (default, closest, or dithering)" << std::endl;

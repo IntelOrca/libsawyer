@@ -244,6 +244,11 @@ bool CommandLineParser::hasOption(std::string_view name) const
     return false;
 }
 
+const std::vector<std::string_view>* CommandLineParser::getArgs() const
+{
+    return getArgs("");
+}
+
 const std::vector<std::string_view>* CommandLineParser::getArgs(std::string_view name) const
 {
     for (auto& r : _values)

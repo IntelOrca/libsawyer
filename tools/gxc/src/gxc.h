@@ -3,6 +3,7 @@
 #include <optional>
 #include <sawyer/Palette.h>
 #include <string>
+#include <vector>
 
 namespace gxc
 {
@@ -39,7 +40,7 @@ namespace gxc
         std::string mode;
         std::string csgHeaderPath;
         std::string csgDataPath;
-        std::string inputPath[2];
+        std::vector<std::string> inputPath;
         bool quiet{};
     };
 

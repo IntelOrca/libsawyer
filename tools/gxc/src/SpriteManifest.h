@@ -39,6 +39,7 @@ namespace gxc
             int32_t srcY{};
             int32_t srcWidth{};
             int32_t srcHeight{};
+            int32_t count{};
         };
 
         std::vector<Entry> entries;

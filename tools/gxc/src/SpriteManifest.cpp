@@ -6,6 +6,31 @@
 using namespace cs;
 using namespace gxc;
 
+struct Range
+{
+    int32_t Lower{};
+    int32_t Upper{};
+
+    Range() = default;
+
+    Range(int32_t single)
+        : Lower(single)
+        , Upper(single)
+    {
+    }
+
+    Range(int32_t lower, int32_t upper)
+        : Lower(lower)
+        , Upper(upper)
+    {
+    }
+
+    int32_t getLength() const
+    {
+        return Upper - Lower + 1;
+    }
+};
+
 static SpriteManifest::Format parseFormat(const nlohmann::json& jFormat)
 {
     auto value = jFormat.get<std::string>();
@@ -28,6 +53,68 @@ static SpriteManifest::PaletteKind parsePalette(const nlohmann::json& jFormat)
         throw std::runtime_error("Unknown palette kind");
 }
 
+static std::optional<int32_t> parseInteger(std::string_view s)
+{
+    if (s.empty())
+        return std::nullopt;
+    auto neg = 1;
+    if (s[0] == '-')
+    {
+        s = s.substr(1);
+        neg = -1;
+    }
+    int64_t num = 0;
+    for (auto ch : s)
+    {
+        if (ch >= '0' && ch <= '9')
+        {
+            num *= 10;
+            num += (ch - '0');
+        }
+        else
+        {
+            return std::nullopt;
+        }
+    }
+    num *= neg;
+    if (num < std::numeric_limits<int32_t>::min() || num > std::numeric_limits<int32_t>::max())
+    {
+        return std::nullopt;
+    }
+    return static_cast<int32_t>(num);
+}
+
+static std::optional<Range> parseRange(std::string_view s)
+{
+    if (s.size() < 3)
+        return std::nullopt;
+    if (s[0] != '[' || s[s.size() - 1] != ']')
+        return std::nullopt;
+    s = s.substr(1, s.size() - 2);
+
+    auto middleIndex = s.find("..");
+    if (middleIndex == std::string_view::npos)
+    {
+        // E.g. [0]
+        auto left = parseInteger(s);
+        if (left)
+        {
+            return Range(*left);
+        }
+    }
+    else
+    {
+        // E.g. [0..2]
+        auto left = parseInteger(s.substr(0, middleIndex));
+        auto right = parseInteger(s.substr(middleIndex + 2));
+        if (left && right)
+        {
+            return Range(*left, *right);
+        }
+    }
+    return std::nullopt;
+}
+
 static SpriteManifest::Entry parseEntry(const nlohmann::json& jEntry)
 {
     SpriteManifest::Entry result;
@@ -37,10 +124,23 @@ static SpriteManifest::Entry parseEntry(const nlohmann::json& jEntry)
         if (value.empty())
         {
             result.format = SpriteManifest::Format::empty;
+            result.count = 1;
         }
         else
         {
-            throw std::runtime_error("Non-empty entries not supported.");
+            if (value[0] == '$')
+            {
+                auto range = parseRange(value.substr(1));
+                if (!range)
+                    throw std::runtime_error("Invalid range: " + value);
+
+                result.format = SpriteManifest::Format::empty;
+                result.count = range->getLength();
+            }
+            else
+            {
+                throw std::runtime_error("Only \"\" or \"$[#..#]\" syntax supported.");
+            }
         }
     }
     else

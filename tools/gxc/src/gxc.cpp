@@ -117,11 +117,14 @@ int runBuild(const CommandLineOptions& options)
     {
         if (manifestEntry.format == SpriteManifest::Format::empty)
         {
-            if (!options.quiet)
+            for (auto i = 0; i < manifestEntry.count; i++)
             {
-                std::cout << "Adding empty entry" << std::endl;
+                if (!options.quiet)
+                {
+                    std::cout << "Adding empty entry" << std::endl;
+                }
+                archive.addEmptyEntry();
             }
-            archive.addEmptyEntry();
             continue;
         }
 

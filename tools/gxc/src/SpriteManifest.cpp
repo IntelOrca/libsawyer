@@ -31,29 +31,44 @@ static SpriteManifest::PaletteKind parsePalette(const nlohmann::json& jFormat)
 static SpriteManifest::Entry parseEntry(const nlohmann::json& jEntry)
 {
     SpriteManifest::Entry result;
-    result.path = jEntry.at("path").get<std::string>();
-    if (jEntry.contains("format"))
-        result.format = parseFormat(jEntry["format"]);
-    if (jEntry.contains("palette"))
-        result.palette = parsePalette(jEntry["palette"]);
-    if (jEntry.contains("x"))
-        result.offsetX = jEntry["x"];
-    else if (jEntry.contains("x_offset"))
-        result.offsetX = jEntry["x_offset"];
-    if (jEntry.contains("y"))
-        result.offsetY = jEntry["y"];
-    else if (jEntry.contains("y_offset"))
-        result.offsetY = jEntry["y_offset"];
-    else if (jEntry.contains("zoom"))
-        result.zoomOffset = jEntry["zoom"];
-    if (jEntry.contains("srcX"))
-        result.srcX = jEntry["srcX"];
-    if (jEntry.contains("srcY"))
-        result.srcY = jEntry["srcY"];
-    if (jEntry.contains("srcWidth"))
-        result.srcWidth = jEntry["srcWidth"];
-    if (jEntry.contains("srcHeight"))
-        result.srcHeight = jEntry["srcHeight"];
+    if (jEntry.is_string())
+    {
+        auto value = jEntry.get<std::string>();
+        if (value.empty())
+        {
+            result.format = SpriteManifest::Format::empty;
+        }
+        else
+        {
+            throw std::runtime_error("Non-empty entries not supported.");
+        }
+    }
+    else
+    {
+        result.path = jEntry.at("path").get<std::string>();
+        if (jEntry.contains("format"))
+            result.format = parseFormat(jEntry["format"]);
+        if (jEntry.contains("palette"))
+            result.palette = parsePalette(jEntry["palette"]);
+        if (jEntry.contains("x"))
+            result.offsetX = jEntry["x"];
+        else if (jEntry.contains("x_offset"))
+            result.offsetX = jEntry["x_offset"];
+        if (jEntry.contains("y"))
+            result.offsetY = jEntry["y"];
+        else if (jEntry.contains("y_offset"))
+            result.offsetY = jEntry["y_offset"];
+        else if (jEntry.contains("zoom"))
+            result.zoomOffset = jEntry["zoom"];
+        if (jEntry.contains("srcX"))
+            result.srcX = jEntry["srcX"];
+        if (jEntry.contains("srcY"))
+            result.srcY = jEntry["srcY"];
+        if (jEntry.contains("srcWidth"))
+            result.srcWidth = jEntry["srcWidth"];
+        if (jEntry.contains("srcHeight"))
+            result.srcHeight = jEntry["srcHeight"];
+    }
     return result;
 }
 

@@ -18,6 +18,7 @@ namespace gxc
             bmp,
             rle,
             palette,
+            empty
         };
 
         enum class PaletteKind

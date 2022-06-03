@@ -102,6 +102,16 @@ GxEntry SpriteArchive::getGx(uint32_t index) const
     return gx;
 }
 
+void SpriteArchive::addEmptyEntry()
+{
+    Entry entry;
+    entry.flags = GxFlags::transparent;
+    entry.width = 1;
+    entry.height = 1;
+    std::byte data{};
+    addEntry(entry, stdx::span(&data, 1));
+}
+
 void SpriteArchive::addEntry(const Entry& entry, stdx::span<const std::byte> data)
 {
     _entries.push_back(entry);

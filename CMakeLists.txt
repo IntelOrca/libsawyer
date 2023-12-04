@@ -110,7 +110,7 @@ if (ENABLE_LIBPNG)
 
     if (MSVC)
         if (${VCPKG_TARGET_TRIPLET} MATCHES "-static$")
-            find_package(PNG CONFIG REQUIRED)
+            find_package(libpng CONFIG REQUIRED)
             merge_static_libraries(sawyer $<TARGET_FILE:png_static>)
         else ()
             find_package(PNG REQUIRED)

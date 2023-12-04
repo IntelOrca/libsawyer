@@ -111,7 +111,7 @@ if (ENABLE_LIBPNG)
     if (${VCPKG_TARGET_TRIPLET} MATCHES "-static$")
         merge_static_libraries(sawyer $<TARGET_FILE:png_static>)
     else ()
-        target_link_libraries(sawyer PRIVATE png)
+        target_link_libraries(sawyer PRIVATE PNG::PNG)
     endif ()
 endif ()
 

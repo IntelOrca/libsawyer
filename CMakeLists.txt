@@ -104,7 +104,7 @@ endif ()
 
 if (ENABLE_LIBPNG)
     if (MSVC)
-        find_package(PNG CONFIG REQUIRED)
+        find_package(PNG REQUIRED)
     endif ()
     target_compile_definitions(sawyer PRIVATE CS_ENABLE_LIBPNG)
 

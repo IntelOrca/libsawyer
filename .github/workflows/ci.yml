@@ -15,15 +15,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
       - name: Build libsawyer
-        run: ./build libsawyer
+        run: ./build.sh libsawyer
       - name: Test libsawyer
         run: ./run-tests
       - name: Build fsaw
-        run: ./build fsaw
+        run: ./build.sh fsaw
       - name: Build gxc
-        run: ./build gxc
+        run: ./build.sh gxc
       - name: Package tools
-        run: ./build tools
+        run: ./build.sh tools
       - name: Upload libsawyer
         uses: actions/upload-artifact@v3
         with:
@@ -49,15 +49,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
       - name: Build libsawyer
-        run: ./build libsawyer
+        run: ./build.sh libsawyer
       - name: Test libsawyer
         run: ./run-tests
       - name: Build fsaw
-        run: ./build fsaw
+        run: ./build.sh fsaw
       - name: Build gxc
-        run: ./build gxc
+        run: ./build.sh gxc
       - name: Package tools
-        run: ./build tools
+        run: ./build.sh tools
       - name: Upload libsawyer
         uses: actions/upload-artifact@v3
         with:
@@ -96,7 +96,7 @@ jobs:
         shell: cmd
         run: |
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=${{ matrix.arch }}
-          sh build libsawyer -p ${{ matrix.platform }}
+          sh build.sh libsawyer -p ${{ matrix.platform }}
       - name: Test libsawyer
         shell: cmd
         run: |
@@ -133,25 +133,25 @@ jobs:
         shell: cmd
         run: |
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=${{ matrix.arch }}
-          sh build libsawyer -p ${{ matrix.platform }} --static
+          sh build.sh libsawyer -p ${{ matrix.platform }} --static
       - name: Build fsaw
         if: matrix.platform == 'x64'
         shell: cmd
         run: |
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=${{ matrix.arch }}
-          sh build fsaw --static
+          sh build.sh fsaw --static
       - name: Build gxc
         if: matrix.platform == 'x64'
         shell: cmd
         run: |
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=${{ matrix.arch }}
-          sh build gxc --static
+          sh build.sh gxc --static
       - name: Package tools
         if: matrix.platform == 'x64'
         shell: cmd
         run: |
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=${{ matrix.arch }}
-          sh build tools --static
+          sh build.sh tools --static
       - name: Upload libsawyer
         uses: actions/upload-artifact@v3
         with:

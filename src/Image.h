@@ -25,5 +25,6 @@ namespace cs
         static Image fromPng(Stream& stream);
         void toPng(Stream& stream) const;
         Image crop(int32_t cropX, int32_t cropY, uint32_t cropWidth, uint32_t cropHeight) const;
+        Image copy();
     };
 }

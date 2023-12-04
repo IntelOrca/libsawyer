@@ -3,6 +3,7 @@
 #include "SpriteManifest.h"
 #include <cstdio>
 #include <iostream>
+#include <map>
 #include <optional>
 #include <sawyer/CommandLine.h>
 #include <sawyer/Image.h>
@@ -113,6 +114,7 @@ int runBuild(const CommandLineOptions& options)
     // Check we can write to the ouput path first
     archive.writeToFile(outputPath);
 
+    std::map<fs::path, Image> imageCache;
     for (auto& manifestEntry : manifest.entries)
     {
         if (manifestEntry.format == SpriteManifest::Format::empty)
@@ -134,8 +136,12 @@ int runBuild(const CommandLineOptions& options)
         }
         try
         {
-            FileStream fs(manifestEntry.path, StreamFlags::read);
-            auto img = Image::fromPng(fs);
+            if (imageCache.count(manifestEntry.path) == 0)
+            {
+                FileStream fs(manifestEntry.path, StreamFlags::read);
+                imageCache.emplace(manifestEntry.path, Image::fromPng(fs));
+            }
+            auto img = imageCache[manifestEntry.path].copy();
 
             if (manifestEntry.srcWidth != 0 || manifestEntry.srcHeight != 0)
             {

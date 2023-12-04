@@ -333,3 +333,19 @@ Image Image::crop(int32_t cropX, int32_t cropY, uint32_t cropWidth, uint32_t cro
     }
     return dstImage;
 }
+
+Image Image::copy()
+{
+    Image dstImage;
+    dstImage.depth = depth;
+    dstImage.width = width;
+    dstImage.height = height;
+    dstImage.stride = stride;
+    if (palette)
+    {
+        dstImage.palette = std::make_unique<Palette>(*palette);
+    }
+    dstImage.pixels = pixels;
+
+    return dstImage;
+}

@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -ex
 
 usage() {
   echo "usage: build TARGET [ -c CONFIGURATION ] [ --static ]"

@@ -82,6 +82,8 @@ jobs:
           arch: x86
         - platform: x64
           arch: amd64
+        - platform: arm64
+          arch: arm64
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -99,6 +101,7 @@ jobs:
           sh build.sh libsawyer -p ${{ matrix.platform }}
       - name: Test libsawyer
         shell: cmd
+        if: matrix.platform != 'arm64'
         run: |
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=${{ matrix.arch }}
           sh run-tests
@@ -119,6 +122,8 @@ jobs:
           arch: x86
         - platform: x64
           arch: amd64
+        - platform: arm64
+          arch: arm64
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -135,19 +140,19 @@ jobs:
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=${{ matrix.arch }}
           sh build.sh libsawyer -p ${{ matrix.platform }} --static
       - name: Build fsaw
-        if: matrix.platform == 'x64'
+        if: ${{ matrix.platform == 'x64' || matrix.platform == 'arm64' }}
         shell: cmd
         run: |
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=${{ matrix.arch }}
           sh build.sh fsaw --static
       - name: Build gxc
-        if: matrix.platform == 'x64'
+        if: ${{ matrix.platform == 'x64' || matrix.platform == 'arm64' }}
         shell: cmd
         run: |
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=${{ matrix.arch }}
           sh build.sh gxc --static
       - name: Package tools
-        if: matrix.platform == 'x64'
+        if: ${{ matrix.platform == 'x64' || matrix.platform == 'arm64' }}
         shell: cmd
         run: |
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=${{ matrix.arch }}
@@ -159,7 +164,7 @@ jobs:
           path: artefacts/libsawyer-win-${{ matrix.platform }}-static.zip
           if-no-files-found: error
       - name: Upload tools
-        if: matrix.platform == 'x64'
+        if: ${{ matrix.platform == 'x64' || matrix.platform == 'arm64' }}
         uses: actions/upload-artifact@v3
         with:
           name: libsawyer-tools-win-${{ matrix.platform }}.zip

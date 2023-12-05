@@ -136,12 +136,13 @@ int runBuild(const CommandLineOptions& options)
         }
         try
         {
-            if (imageCache.count(manifestEntry.path) == 0)
+            auto imageCacheIterator = imageCache.find(manifestEntry.path);
+            if (imageCacheIterator == imageCache.end())
             {
                 FileStream fs(manifestEntry.path, StreamFlags::read);
-                imageCache.emplace(manifestEntry.path, Image::fromPng(fs));
+                std::tie(imageCacheIterator, std::ignore) = imageCache.emplace(manifestEntry.path, Image::fromPng(fs));
             }
-            auto img = imageCache[manifestEntry.path].copy();
+            auto img = imageCacheIterator->second.copy();
 
             if (manifestEntry.srcWidth != 0 || manifestEntry.srcHeight != 0)
             {

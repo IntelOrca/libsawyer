@@ -2,7 +2,7 @@
 set -e
 
 usage() {
-  echo "usage: build TARGET [ -c CONFIGURATION ] [ --static ]"
+  echo "usage: build TARGET [ -c CONFIGURATION ] [ --static ] [ -p PLATFORM ] [ --cmake CMAKE_ARGS ]"
   echo "targets:"
   echo "    libsawyer (default)"
   echo "    fsaw"
@@ -27,6 +27,7 @@ fi
 COMPONENT="libsawyer"
 CONFIGURATION=Release
 PLATFORM=x64
+CMAKE_ARGS=""
 while (( "$#" )); do
     case "$1" in
         --static)
@@ -36,6 +37,15 @@ while (( "$#" )); do
         -c)
             if [ -n "$2" ] && [ "${2:0:1}" != "-" ]; then
                 CONFIGURATION=$2
+                shift 2
+            else
+                echo "Error: Argument for $1 is missing" >&2
+                exit 1
+            fi
+            ;;
+        --cmake)
+            if [ -n "$2" ] ; then
+                CMAKE_ARGS=$2
                 shift 2
             else
                 echo "Error: Argument for $1 is missing" >&2
@@ -80,7 +90,7 @@ if [ "$OS" == "windows" ]; then
 fi
 
 CMAKE_CLEAN="rm -rf bin out"
-CMAKE_CONFIGURE_CMD="cmake -G Ninja -B bin -DCMAKE_BUILD_TYPE=$CONFIGURATION $VCPKG_TRIPLET_ARG $VCPKG_TOOLCHAIN_ARG"
+CMAKE_CONFIGURE_CMD="cmake -G Ninja -B bin -DCMAKE_BUILD_TYPE=$CONFIGURATION $VCPKG_TRIPLET_ARG $VCPKG_TOOLCHAIN_ARG $CMAKE_ARGS"
 CMAKE_BUILD_CMD="cmake --build bin"
 CMAKE_INSTALL_CMD="cmake --install bin"
 

@@ -13,7 +13,7 @@ jobs:
       - name: Prepare environment
         run: apk add bash cmake ninja g++ libpng-dev nlohmann-json gtest-dev
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Build libsawyer
         run: ./build.sh libsawyer
       - name: Test libsawyer
@@ -25,13 +25,13 @@ jobs:
       - name: Package tools
         run: ./build.sh tools
       - name: Upload libsawyer
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: libsawyer-musl-${{ matrix.platform }}.tar.gz
           path: artefacts/libsawyer-musl-${{ matrix.platform }}.tar.gz
           if-no-files-found: error
       - name: Upload tools
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: libsawyer-tools-musl-${{ matrix.platform }}.tar.gz
           path: artefacts/libsawyer-tools-musl-${{ matrix.platform }}.tar.gz
@@ -47,7 +47,7 @@ jobs:
       - name: Prepare environment
         run: sudo apt-get install ninja-build libpng-dev nlohmann-json3-dev libgtest-dev
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Build libsawyer
         run: ./build.sh libsawyer
       - name: Test libsawyer
@@ -59,13 +59,13 @@ jobs:
       - name: Package tools
         run: ./build.sh tools
       - name: Upload libsawyer
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: libsawyer-linux-${{ matrix.platform }}.tar.gz
           path: artefacts/libsawyer-linux-${{ matrix.platform }}.tar.gz
           if-no-files-found: error
       - name: Upload tools
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: libsawyer-tools-linux-${{ matrix.platform }}.tar.gz
           path: artefacts/libsawyer-tools-linux-${{ matrix.platform }}.tar.gz
@@ -84,9 +84,9 @@ jobs:
           arch: amd64
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Cache vcpkg
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         env:
           cache-name: cache-vcpkg
         with:
@@ -121,9 +121,9 @@ jobs:
           arch: amd64
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Cache vcpkg
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         env:
           cache-name: cache-vcpkg
         with:
@@ -153,14 +153,14 @@ jobs:
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=${{ matrix.arch }}
           sh build.sh tools --static
       - name: Upload libsawyer
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: libsawyer-win-${{ matrix.platform }}-static.zip
           path: artefacts/libsawyer-win-${{ matrix.platform }}-static.zip
           if-no-files-found: error
       - name: Upload tools
         if: matrix.platform == 'x64'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: libsawyer-tools-win-${{ matrix.platform }}.zip
           path: artefacts/libsawyer-tools-win-${{ matrix.platform }}.zip
@@ -171,7 +171,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Get artefacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           path: artefacts
       - name: Flatten tree structure

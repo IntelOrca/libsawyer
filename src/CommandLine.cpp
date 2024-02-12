@@ -1,4 +1,5 @@
 #include "CommandLine.h"
+#include <cstdint>
 #include <string>
 
 using namespace cs;
